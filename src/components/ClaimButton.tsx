@@ -1,6 +1,6 @@
 import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
 import { reactorHookAbi } from '../abis/reactorHook'
-import { isHookDeployed, REACTOR_HOOK_CA } from '../config/contract'
+import { REACTOR_HOOK_CA } from '../config/contract'
 import { useReactorWallet } from '../hooks/useReactorWallet'
 
 interface ClaimButtonProps {

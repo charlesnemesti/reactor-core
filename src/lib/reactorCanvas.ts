@@ -77,7 +77,7 @@ export function drawHudBrackets(
   ctx.lineWidth = 1.25
   const len = size
 
-  const corners: [number, number, number, number][] = [
+  const corners: [number, number, number, number, number, number][] = [
     [x, y + len, x, y, x + len, y],
     [x + w - len, y, x + w, y, x + w, y + len],
     [x, y + h - len, x, y + h, x + len, y + h],

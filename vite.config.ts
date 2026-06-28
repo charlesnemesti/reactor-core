@@ -6,7 +6,7 @@ import {
   getActiveCount,
   heartbeat,
   leave,
-} from './api/lib/visitorStore'
+} from './api/lib/visitorStore.js'
 
 function visitorApiMiddleware(): Connect.NextHandleFunction {
   return (req, res, next) => {

@@ -7,6 +7,12 @@ import { ENV } from './env'
 
 export const appChain = ENV.chainId === sepolia.id ? sepolia : mainnet
 
+const chains = [appChain] as const
+
+function chainTransport() {
+  return ENV.rpcUrl ? http(ENV.rpcUrl) : http()
+}
+
 const connectors = [
   ...createInjectedWalletConnectors(),
   coinbaseWallet({
@@ -24,11 +30,12 @@ const connectors = [
 ]
 
 export const wagmiConfig = createConfig({
-  chains: [appChain],
+  chains: [...chains],
   connectors,
   multiInjectedProviderDiscovery: false,
   transports: {
-    [appChain.id]: ENV.rpcUrl ? http(ENV.rpcUrl) : http(),
+    [mainnet.id]: chainTransport(),
+    [sepolia.id]: chainTransport(),
   },
   ssr: false,
 })
