@@ -6,20 +6,14 @@ interface VantaEffectHandle {
   destroy(): void
 }
 
-const BASE = {
-  color: 0xff3f81,
-  backgroundColor: 0x23153c,
-  points: 10,
-  maxDistance: 20,
-  spacing: 15,
-} as const
+const BG_BLACK = 0x000000
+const DOT_CYAN = 0x22d3ee
+const DOT_CHARGE = 0x4ade80
+const LINE_MIN = 0x52525b
+const LINE_MAX = 0xe4e4e7
 
-const RANGES = {
-  color: [0xff3f81, 0x22d3ee] as const,
-  backgroundColor: [0x23153c, 0x1a2330] as const,
-  maxDistance: [18, 22] as const,
-  spacing: [13, 17] as const,
-}
+/** ~2.4s pulse cycle */
+const COLOR_CYCLE_SPEED = 0.0026
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t
@@ -38,9 +32,9 @@ function lerpColor(a: number, b: number, t: number) {
   return (r << 16) | (g << 8) | bl
 }
 
-function oscillate(min: number, max: number, time: number, speed: number) {
-  const t = (Math.sin(time * speed) + 1) / 2
-  return lerp(min, max, t)
+function pulseT(time: number, speed: number, phase = 0) {
+  const raw = (Math.sin(time * speed + phase) + 1) / 2
+  return raw * raw * (3 - 2 * raw)
 }
 
 function waitForVanta(maxAttempts = 50): Promise<void> {
@@ -66,6 +60,7 @@ export function VantaNetBackground() {
   const containerRef = useRef<HTMLDivElement>(null)
   const effectRef = useRef<VantaEffectHandle | null>(null)
   const rafRef = useRef(0)
+  const viewportRef = useRef({ w: window.innerWidth, h: window.innerHeight })
 
   useEffect(() => {
     const el = containerRef.current
@@ -83,18 +78,25 @@ export function VantaNetBackground() {
 
       if (cancelled || !containerRef.current || typeof window.VANTA?.NET !== 'function') return
 
+      viewportRef.current = { w: window.innerWidth, h: window.innerHeight }
+
       const effect = window.VANTA.NET({
         el: containerRef.current,
         mouseControls: true,
         touchControls: true,
         gyroControls: false,
-        minHeight: window.innerHeight,
-        minWidth: window.innerWidth,
+        minHeight: viewportRef.current.h,
+        minWidth: viewportRef.current.w,
         scale: 1,
         scaleMobile: 1,
         showDots: true,
         backgroundAlpha: 1,
-        ...BASE,
+        color: DOT_CYAN,
+        lineColors: LINE_MAX,
+        backgroundColor: BG_BLACK,
+        points: 11,
+        maxDistance: 20,
+        spacing: 15,
       })
 
       effectRef.current = effect
@@ -102,14 +104,15 @@ export function VantaNetBackground() {
       const animate = (time: number) => {
         if (cancelled || !effectRef.current) return
 
-        const tColor = (Math.sin(time * 0.00008) + 1) / 2
-        const tBg = (Math.sin(time * 0.00006 + 1.2) + 1) / 2
+        const dotT = pulseT(time, COLOR_CYCLE_SPEED, 0)
+        const lineT = pulseT(time, COLOR_CYCLE_SPEED, Math.PI * 0.5)
 
         effectRef.current.setOptions({
-          color: lerpColor(RANGES.color[0], RANGES.color[1], tColor),
-          backgroundColor: lerpColor(RANGES.backgroundColor[0], RANGES.backgroundColor[1], tBg),
-          maxDistance: oscillate(RANGES.maxDistance[0], RANGES.maxDistance[1], time, 0.00007),
-          spacing: oscillate(RANGES.spacing[0], RANGES.spacing[1], time, 0.00006),
+          color: lerpColor(DOT_CYAN, DOT_CHARGE, dotT),
+          lineColors: lerpColor(LINE_MIN, LINE_MAX, lineT),
+          backgroundColor: BG_BLACK,
+          backgroundAlpha: 1,
+          showDots: true,
         })
 
         rafRef.current = requestAnimationFrame(animate)
@@ -120,7 +123,10 @@ export function VantaNetBackground() {
 
     void init()
 
-    const onResize = () => effectRef.current?.resize()
+    const onResize = () => {
+      viewportRef.current = { w: window.innerWidth, h: window.innerHeight }
+      effectRef.current?.resize()
+    }
     window.addEventListener('resize', onResize)
 
     return () => {
@@ -136,7 +142,7 @@ export function VantaNetBackground() {
     <div
       ref={containerRef}
       className="pointer-events-none fixed inset-0 z-0 min-h-screen w-full"
-      style={{ backgroundColor: '#23153c' }}
+      style={{ backgroundColor: '#000000' }}
       aria-hidden
     />
   )

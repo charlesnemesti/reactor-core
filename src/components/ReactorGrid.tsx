@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactorSnapshot } from '../engine/types'
-import { ReactorCellVisual } from './ReactorCellVisual'
+import { CommandPanel } from './CommandPanel'
+import { FuelRodCell } from './FuelRodCell'
 
-const COLS = 12
+const COLS = 6
 const PAD = 16
-const GAP = 6
-const MIN_CELL_W = 28
-const MAX_CELL_W = 58
-const CELL_ASPECT = 36 / 28
+const GAP = 10
+const MIN_CELL_W = 44
+const MAX_CELL_W = 96
+const CELL_ASPECT = 1.45
 
 interface GridDims {
   cellW: number
@@ -18,11 +19,17 @@ interface ReactorGridProps {
   snapshot: ReactorSnapshot
   onSelectCell: (id: string | null) => void
   onHoverCell: (id: string | null) => void
+  onNextPage: () => void
 }
 
-export function ReactorGrid({ snapshot, onSelectCell, onHoverCell }: ReactorGridProps) {
+export function ReactorGrid({
+  snapshot,
+  onSelectCell,
+  onHoverCell,
+  onNextPage,
+}: ReactorGridProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [dims, setDims] = useState<GridDims>({ cellW: 28, cellH: 36 })
+  const [dims, setDims] = useState<GridDims>({ cellW: 56, cellH: 81 })
 
   useEffect(() => {
     const el = containerRef.current
@@ -44,10 +51,8 @@ export function ReactorGrid({ snapshot, onSelectCell, onHoverCell }: ReactorGrid
   const gridWidth = COLS * dims.cellW + (COLS - 1) * GAP
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[rgba(6,8,12,0.75)] p-2 backdrop-blur-md"
-    >
+    <div ref={containerRef} className="w-full">
+      <CommandPanel brackets scanline={false} className="w-full p-2">
       <div
         className="grid-scanlines mx-auto rounded-lg bg-[rgba(10,14,20,0.6)]"
         style={{
@@ -65,7 +70,7 @@ export function ReactorGrid({ snapshot, onSelectCell, onHoverCell }: ReactorGrid
           }}
         >
           {snapshot.cells.map((cell) => (
-            <ReactorCellVisual
+            <FuelRodCell
               key={cell.id}
               cell={cell}
               width={dims.cellW}
@@ -81,6 +86,16 @@ export function ReactorGrid({ snapshot, onSelectCell, onHoverCell }: ReactorGrid
           ))}
         </div>
       </div>
+
+      <div className="mt-3 flex items-center justify-between gap-3 px-2 pb-1">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+          Page {snapshot.gridPage + 1} · {snapshot.cells.length} rods
+        </span>
+        <button type="button" className="btn-secondary !py-2 !text-[11px]" onClick={onNextPage}>
+          Next page →
+        </button>
+      </div>
+      </CommandPanel>
     </div>
   )
 }

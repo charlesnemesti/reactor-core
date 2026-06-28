@@ -1,5 +1,17 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_CORE_CA?: string
+  readonly VITE_REACTOR_HOOK_CA?: string
+  readonly VITE_CHAIN_ID?: string
+  readonly VITE_RPC_URL?: string
+  readonly VITE_WALLETCONNECT_PROJECT_ID?: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+
 interface VantaNetOptions {
   el: HTMLElement | string
   mouseControls?: boolean
@@ -16,6 +28,7 @@ interface VantaNetOptions {
   maxDistance?: number
   spacing?: number
   showDots?: boolean
+  lineColors?: number
 }
 
 interface VantaEffect {

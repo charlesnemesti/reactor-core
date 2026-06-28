@@ -27,6 +27,7 @@ export interface ReactorSnapshot {
   claimableEth: number
   selectedCellId: string | null
   hoveredCellId: string | null
+  gridPage: number
   demoLabel: string
 }
 
@@ -45,6 +46,7 @@ export interface DemoEngine {
   getSnapshot: () => ReactorSnapshot
   selectCell: (id: string | null) => void
   hoverCell: (id: string | null) => void
+  nextPage: () => void
   tick: (dtMs: number) => void
   destroy: () => void
 }

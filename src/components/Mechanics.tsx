@@ -1,4 +1,8 @@
 import { Link } from 'react-router-dom'
+import { BuyCoreButton } from './BuyCoreButton'
+import { CommandPanel, CommandSectionHead } from './CommandPanel'
+import { ConnectWalletButton } from './ConnectWalletButton'
+import { isCaDeployed } from '../config/contract'
 
 const STEPS = [
   {
@@ -25,21 +29,21 @@ const STEPS = [
 
 export function Mechanics() {
   return (
-    <section className="page-shell py-12 sm:py-16">
-      <div className="content-block p-5 sm:p-6 lg:p-8">
-        <p className="eyebrow mb-2">How it works</p>
-        <h2 className="section-title mb-3 text-white">Mechanics</h2>
-        <p className="mb-10 max-w-2xl text-[var(--text-muted)]">
-          The full loop — buffer math, the 60% rule, charge-score and payouts.
-        </p>
+    <section className="page-shell py-20 sm:py-28">
+      <CommandPanel tag="How it works" className="p-5 sm:p-6 lg:p-8">
+        <CommandSectionHead
+          className="mb-10"
+          eyebrow="Mechanics"
+          title="The containment loop"
+          description="The full loop — buffer math, the 60% rule, charge-score and payouts."
+        />
 
         <div className="grid gap-4 sm:grid-cols-2">
           {STEPS.map((step) => (
-            <article key={step.num} className="panel panel-glow p-5">
-              <div className="mb-3 font-mono text-sm font-bold text-cyan-400">{step.num}</div>
+            <CommandPanel key={step.num} tag={step.num} scanline={false} className="p-5">
               <h3 className="mb-2 text-lg font-semibold text-white">{step.title}</h3>
               <p className="text-sm leading-relaxed text-[var(--text-muted)]">{step.body}</p>
-            </article>
+            </CommandPanel>
           ))}
         </div>
 
@@ -50,7 +54,14 @@ export function Mechanics() {
           </Link>
           .
         </p>
-      </div>
+
+        {isCaDeployed() && (
+          <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-[var(--border-subtle)] pt-6">
+            <ConnectWalletButton />
+            <BuyCoreButton />
+          </div>
+        )}
+      </CommandPanel>
     </section>
   )
 }

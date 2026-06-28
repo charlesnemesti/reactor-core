@@ -11,10 +11,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "lottie-web": "^5.13.0",
+    "@tanstack/react-query": "^5.101.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.0"
+    "react-router-dom": "^7.18.0",
+    "viem": "^2.53.1",
+    "wagmi": "^3.6.21"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.1",

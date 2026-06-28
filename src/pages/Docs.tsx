@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BETA_MULTIPLIER,
   BUY_FEE_BPS,
   FRESH_WEIGHT,
+  LAUNCH_MESSAGE,
   REENGAGEMENT_THRESHOLD,
   SELL_FEE_BPS,
   SETTLE_TIP_BPS,
@@ -11,6 +12,9 @@ import {
   THETA_SMAX,
   TOKEN_INITIAL_SUPPLY,
 } from '../config/contract'
+import { CommandPanel, CommandSectionHead } from '../components/CommandPanel'
+import { DocsEntrySequence } from '../components/docs/DocsEntrySequence'
+import { LiveReactorPeek } from '../components/LiveReactorPeek'
 import { collapseThresholdExample } from '../engine/demoEngine'
 
 const PARAMS = [
@@ -37,22 +41,29 @@ export function DocsPage() {
   const exampleSells = collapseThresholdExample(exampleBuys)
 
   return (
-    <div className="page-shell py-12 sm:py-16">
-      <div className="content-block mx-auto max-w-4xl p-5 sm:p-6 lg:p-8">
-        <Link
-          to="/"
-          className="mb-8 inline-flex font-mono text-xs uppercase tracking-wider text-cyan-400 hover:text-white"
-        >
-          ← Back to reactor
-        </Link>
+    <DocsEntrySequence>
+      <div className="page-shell py-12 sm:py-16">
+        <CommandPanel tag="Documentation" className="docs-main-panel mx-auto max-w-4xl p-5 sm:p-6 lg:p-8">
+          <Link
+            to="/"
+            className="docs-stagger-item docs-stagger-item--0 mb-8 inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-cyan-400 hover:text-white"
+          >
+            <span aria-hidden>←</span> Back to reactor
+          </Link>
 
-        <h1 className="section-title mb-2 text-white">REACTOR — docs</h1>
-        <p className="mb-12 text-[var(--text-muted)]">
-          Target v1 mechanic. Exact α / γ values and the cycle-1 Smax bootstrap are finalized at
-          implementation.
-        </p>
+          <CommandSectionHead
+            className="docs-stagger-item docs-stagger-item--1 mb-8"
+            eyebrow="Reference"
+            title="REACTOR — docs"
+            description="Target v1 mechanic. Exact α / γ values and the cycle-1 Smax bootstrap are finalized at implementation."
+          />
 
-        <DocSection id="overview" num="01" title="Overview">
+          <div className="docs-stagger-item docs-stagger-item--2">
+            <LiveReactorPeek />
+          </div>
+
+          <div className="docs-sections">
+            <DocSection id="overview" num="01" title="Overview" index={0}>
           <p>
             The reactor lives in cycles, and every cycle runs the same loop: a new holder inserts a
             fuel cell → the charge inside it builds → each trade drips a fee into the core → sells
@@ -68,7 +79,7 @@ export function DocsPage() {
           </ul>
         </DocSection>
 
-        <DocSection id="cells" num="02" title="Cells & charge">
+            <DocSection id="cells" num="02" title="Cells & charge" index={1}>
           <p>
             One wallet is one fuel cell. Your first purchase mints a cell in the grid. The longer
             you hold, the deeper its charge — your share of the core is set by your charge-score,
@@ -86,7 +97,7 @@ export function DocsPage() {
           </p>
         </DocSection>
 
-        <DocSection id="core" num="03" title="The core">
+            <DocSection id="core" num="03" title="The core" index={2}>
           <p>
             Every trade pays a fee, taken in ETH, straight into the shared core:
           </p>
@@ -104,7 +115,7 @@ export function DocsPage() {
           </p>
         </DocSection>
 
-        <DocSection id="buffer" num="04" title="Buffer & the 60% rule">
+            <DocSection id="buffer" num="04" title="Buffer & the 60% rule" index={3}>
           <p>
             The reactor&apos;s strength is a hidden buffer <em>S</em>. Buys push it up, sells pull
             it down — harder — and a slow “gravity” bleeds it over time. When <em>S</em> hits zero,
@@ -117,8 +128,7 @@ export function DocsPage() {
             The β = {BETA_MULTIPLIER}·α calibration is what produces the 60% rule.
           </p>
 
-          <div className="panel mt-6 p-5">
-            <div className="eyebrow mb-3 text-amber-400">Worked example</div>
+          <CommandPanel tag="Worked example" scanline={false} className="mt-6 p-5">
             <dl className="space-y-2 font-mono text-sm">
               <div className="flex justify-between gap-4">
                 <dt className="text-[var(--text-muted)]">Cycle buys</dt>
@@ -133,7 +143,7 @@ export function DocsPage() {
                 <dd className="text-charge-400">≈ 60% of cycle buys → meltdown</dd>
               </div>
             </dl>
-          </div>
+          </CommandPanel>
 
           <p className="mt-4 text-sm text-[var(--text-muted)]">
             The threshold Smax = θ · pool reserve is recalculated once per cycle at settle, because
@@ -142,7 +152,7 @@ export function DocsPage() {
           </p>
         </DocSection>
 
-        <DocSection id="meltdown" num="05" title="Meltdown & payout">
+            <DocSection id="meltdown" num="05" title="Meltdown & payout" index={4}>
           <p>
             At a meltdown the core is divided among the loyal cells, strictly in proportion to
             charge-score, with no per-wallet cap:
@@ -157,7 +167,7 @@ export function DocsPage() {
           </p>
         </DocSection>
 
-        <DocSection id="reengagement" num="06" title="Re-engagement">
+            <DocSection id="reengagement" num="06" title="Re-engagement" index={5}>
           <p>
             To stop “passive seniority” — buy once, sit forever, keep earning — survivors carry into
             the next cycle at a {SURVIVOR_WEIGHT}× weight, ten times lighter than a fresh buyer. To
@@ -174,7 +184,7 @@ export function DocsPage() {
           </p>
         </DocSection>
 
-        <DocSection id="parameters" num="07" title="Parameters">
+            <DocSection id="parameters" num="07" title="Parameters" index={6}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] border-collapse text-left text-sm">
               <thead>
@@ -201,9 +211,11 @@ export function DocsPage() {
               </tbody>
             </table>
           </div>
-        </DocSection>
+            </DocSection>
+          </div>
+        </CommandPanel>
       </div>
-    </div>
+    </DocsEntrySequence>
   )
 }
 
@@ -211,16 +223,26 @@ function DocSection({
   id,
   num,
   title,
+  index,
   children,
 }: {
   id: string
   num: string
   title: string
+  index: number
   children: ReactNode
 }) {
   return (
-    <section id={id} className="mb-14 scroll-mt-24">
-      <div className="eyebrow mb-2">{num}</div>
+    <section
+      id={id}
+      className={`docs-stagger-section docs-stagger-section--${index} mb-14 scroll-mt-24`}
+      style={{ '--section-i': index } as CSSProperties}
+    >
+      <div className="mb-4 flex items-center gap-3">
+        <span className="command-live-dot shrink-0" aria-hidden />
+        <p className="eyebrow mb-0">{num}</p>
+        <span className="command-section-line hidden flex-1 sm:block" aria-hidden />
+      </div>
       <h2 className="mb-4 text-2xl font-bold text-white">{title}</h2>
       <div className="space-y-4 leading-relaxed text-[var(--text-muted)]">{children}</div>
     </section>
@@ -229,8 +251,8 @@ function DocSection({
 
 function Formula({ children }: { children: ReactNode }) {
   return (
-    <div className="my-4 rounded-lg border border-[var(--border-subtle)] bg-[rgba(6,8,12,0.75)] px-4 py-3 font-mono text-sm text-charge-400 backdrop-blur-md">
-      {children}
-    </div>
+    <CommandPanel scanline={false} brackets={false} className="my-4 px-4 py-3">
+      <div className="font-mono text-sm text-charge-400">{children}</div>
+    </CommandPanel>
   )
 }

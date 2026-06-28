@@ -12,11 +12,28 @@ import type {
 } from './types'
 
 const DEFAULT_CONFIG: DemoEngineConfig = {
-  cellCount: 84,
-  cols: 12,
+  cellCount: 24,
+  cols: 6,
   alpha: 0.18,
   gamma: 0.0008,
-  reserveEth: 2.4,
+  reserveEth: 0.42,
+}
+
+/** Simulated cycle buy/sell volume band shown in live telemetry */
+const DEMO_VOLUME_MIN = 0.15
+const DEMO_VOLUME_MAX = 0.534
+
+function randomVolume(): number {
+  return DEMO_VOLUME_MIN + Math.random() * (DEMO_VOLUME_MAX - DEMO_VOLUME_MIN)
+}
+
+function addTradeVolume(current: number): number {
+  const delta = 0.001 + Math.random() * 0.004
+  let next = current + delta
+  if (next > DEMO_VOLUME_MAX) {
+    next = randomVolume()
+  }
+  return next
 }
 
 function randomHex(seed: number): string {
@@ -32,31 +49,29 @@ function shortenAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`
 }
 
-function createCells(count: number, cols: number): ReactorCell[] {
-  const rows = Math.ceil(count / cols)
+function createCells(count: number, cols: number, pageSeed = 0): ReactorCell[] {
   const cells: ReactorCell[] = []
 
   for (let i = 0; i < count; i++) {
     const row = Math.floor(i / cols)
     const col = i % cols
-    const address = randomHex(i + 1)
-    const balance = 800 + ((i * 137) % 4200) + Math.random() * 600
+    const seed = pageSeed * 997 + i * 13 + 1
+    const address = randomHex(seed)
+    const balance = 800 + ((seed * 137) % 4200) + Math.random() * 600
     cells.push({
-      id: `cell-${i}`,
+      id: `cell-p${pageSeed}-${i}`,
       address: shortenAddress(address),
       balance,
-      chargeScore: balance * (20 + (i % 40)),
-      maturity: 0.15 + (i % 10) * 0.07,
-      heldMs: 60_000 + i * 12_000,
-      weight: i % 17 === 0 ? 0.1 : 1.0,
-      ejected: false,
+      chargeScore: balance * (20 + (seed % 40)),
+      maturity: 0.12 + Math.random() * 0.78,
+      heldMs: 60_000 + seed * 1200 + Math.random() * 40_000,
+      weight: seed % 17 === 0 ? 0.1 : 1.0,
+      ejected: Math.random() < 0.08,
       row,
       col,
     })
   }
 
-  // pad grid dimensions for layout
-  void rows
   return cells
 }
 
@@ -67,10 +82,10 @@ export function createDemoEngine(
   const beta = config.alpha * BETA_MULTIPLIER
   let bufferSmax = THETA_SMAX * config.reserveEth
   let bufferS = bufferSmax * 0.82
-  let coreEth = 0.596
+  let coreEth = 0.038 + Math.random() * 0.022
   let cycle = 1
-  let totalBuysEth = 5.0
-  let totalSellsEth = 1.8
+  let totalBuysEth = randomVolume()
+  let totalSellsEth = randomVolume()
   let meltdownActive = false
   let meltdownFlash = false
   let meltdownTimer = 0
@@ -78,8 +93,9 @@ export function createDemoEngine(
   let tradeTimer = 0
   let selectedCellId: string | null = null
   let hoveredCellId: string | null = null
+  let gridPage = 0
 
-  let cells = createCells(config.cellCount, config.cols)
+  let cells = createCells(config.cellCount, config.cols, gridPage)
   const listeners = new Set<DemoEngineListener>()
 
   function emit() {
@@ -103,23 +119,24 @@ export function createDemoEngine(
       claimableEth,
       selectedCellId,
       hoveredCellId,
-      demoLabel: `demo · preview · grid: ${config.cellCount} · cycle ${cycle}`,
+      gridPage,
+      demoLabel: `demo · preview · ${config.cellCount} rods · page ${gridPage + 1} · cycle ${cycle}`,
     }
   }
 
   function resetCycle() {
     cycle += 1
-    config.reserveEth = 1.8 + Math.random() * 1.2
+    config.reserveEth = 0.32 + Math.random() * 0.18
     bufferSmax = THETA_SMAX * config.reserveEth
     bufferS = bufferSmax * (0.65 + Math.random() * 0.25)
-    coreEth = 0.08 + Math.random() * 0.15
-    totalBuysEth = 0
-    totalSellsEth = 0
+    coreEth = 0.012 + Math.random() * 0.028
+    totalBuysEth = randomVolume()
+    totalSellsEth = randomVolume()
     meltdownActive = false
     meltdownFlash = false
     claimableEth = 0
 
-    cells = createCells(config.cellCount, config.cols).map((cell, i) => {
+    cells = createCells(config.cellCount, config.cols, gridPage).map((cell, i) => {
       const prev = cells[i]
       if (!prev || prev.ejected) return cell
       return {
@@ -159,10 +176,10 @@ export function createDemoEngine(
 
   function simulateTrade() {
     const isBuy = Math.random() > 0.38
-    const ethAmount = 0.04 + Math.random() * 0.22
+    const ethAmount = 0.002 + Math.random() * 0.008
 
     if (isBuy) {
-      totalBuysEth += ethAmount
+      totalBuysEth = addTradeVolume(totalBuysEth)
       coreEth += ethAmount * 0.02
       bufferS = Math.min(bufferSmax, bufferS + config.alpha * ethAmount)
 
@@ -178,7 +195,7 @@ export function createDemoEngine(
         }
       })
     } else {
-      totalSellsEth += ethAmount
+      totalSellsEth = addTradeVolume(totalSellsEth)
       coreEth += ethAmount * 0.03
       bufferS = Math.max(0, bufferS - beta * ethAmount)
 
@@ -256,6 +273,13 @@ export function createDemoEngine(
     },
     hoverCell(id) {
       hoveredCellId = id
+      emit()
+    },
+    nextPage() {
+      gridPage += 1
+      selectedCellId = null
+      hoveredCellId = null
+      cells = createCells(config.cellCount, config.cols, gridPage)
       emit()
     },
     tick,

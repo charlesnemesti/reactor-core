@@ -1,48 +1,23 @@
-import { useEffect, useRef, useState } from 'react'
-import { createDemoEngine } from '../engine/demoEngine'
-import type { DemoEngine, ReactorSnapshot } from '../engine/types'
 import { CellTooltip } from '../components/CellTooltip'
+import { CommandPanel, CommandSectionHead } from '../components/CommandPanel'
+import { ContractStrip } from '../components/ContractStrip'
 import { Gauges } from '../components/Gauges'
 import { Hero } from '../components/Hero'
 import { Mechanics } from '../components/Mechanics'
 import { RewardPanel } from '../components/RewardPanel'
 import { ReactorGrid } from '../components/ReactorGrid'
+import { StatusRail } from '../components/StatusRail'
+import { useReactor } from '../context/ReactorContext'
 
 export function HomePage() {
-  const engineRef = useRef<DemoEngine | null>(null)
-  const [snapshot, setSnapshot] = useState<ReactorSnapshot | null>(null)
-
-  useEffect(() => {
-    const engine = createDemoEngine()
-    engineRef.current = engine
-    const unsubscribe = engine.subscribe(setSnapshot)
-
-    let frame = 0
-    let last = performance.now()
-
-    function loop(now: number) {
-      const dt = Math.min(now - last, 50)
-      last = now
-      engine.tick(dt)
-      frame = requestAnimationFrame(loop)
-    }
-
-    frame = requestAnimationFrame(loop)
-
-    return () => {
-      cancelAnimationFrame(frame)
-      unsubscribe()
-      engine.destroy()
-      engineRef.current = null
-    }
-  }, [])
+  const { snapshot, engineRef } = useReactor()
 
   if (!snapshot) {
     return (
       <div className="page-shell flex min-h-[50vh] items-center justify-center py-12">
-        <div className="content-block px-8 py-6 font-mono text-sm text-cyan-400">
-          Initializing reactor…
-        </div>
+        <CommandPanel tag="Boot sequence" className="px-8 py-6">
+          <p className="font-mono text-sm text-cyan-400">Initializing reactor…</p>
+        </CommandPanel>
       </div>
     )
   }
@@ -58,54 +33,66 @@ export function HomePage() {
     <>
       <Hero />
 
-      <section className="page-shell pb-12 sm:pb-16">
-        <div className="content-block p-5 sm:p-6 lg:p-8">
-          <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
-          <div className="order-1 flex flex-col gap-4 lg:order-2 lg:col-span-8 xl:col-span-9">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="eyebrow mb-1">Live map</p>
-                <h2 className="text-2xl font-bold text-white sm:text-3xl">Reactor grid</h2>
-                <p className="mt-2 max-w-2xl text-sm text-[var(--text-muted)]">
-                  Every rod is one holder. Hover a cell to inspect, tap to select.
-                </p>
-              </div>
-              <div className="shrink-0 font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
-                {snapshot.demoLabel}
-              </div>
-            </div>
-
-            <div className="relative min-h-[280px]">
-              <ReactorGrid
-                snapshot={snapshot}
-                onSelectCell={(id) => engineRef.current?.selectCell(id)}
-                onHoverCell={(id) => engineRef.current?.hoverCell(id)}
-              />
-              {activeCell && (
-                <CellTooltip
-                  cell={activeCell}
-                  coreEth={snapshot.coreEth}
-                  totalChargeScore={totalChargeScore}
-                />
-              )}
-            </div>
-
-            <p className="text-sm text-[var(--text-muted)]">
-              Tap a cell to see balance, hold time, charge ripeness and core share.
-            </p>
-          </div>
-
-          <aside className="order-2 flex flex-col gap-4 lg:order-1 lg:col-span-4 lg:sticky lg:top-[4.5rem] xl:col-span-3">
-            <RewardPanel snapshot={snapshot} />
-            <Gauges snapshot={snapshot} layout="stack" />
-          </aside>
+      <section id="reactor" className="section-block page-shell py-20 pb-28 sm:py-28 sm:pb-32">
+        <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <CommandSectionHead
+            exposed
+            eyebrow="Live map"
+            title="Reactor grid"
+            description="Every rod is one holder. Hover to inspect, tap to select. Use next page for a fresh random slice."
+          />
+          <div className="w-full max-w-sm shrink-0 lg:max-w-xs">
+            <ContractStrip />
           </div>
         </div>
+
+        <CommandPanel
+          tag="Grid control · Live feed"
+          glow={snapshot.meltdownActive}
+          className={`p-5 sm:p-6 lg:p-8 ${snapshot.meltdownActive ? 'command-shell--meltdown' : ''}`}
+        >
+          <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
+            <div className="order-1 flex flex-col gap-5 lg:order-2 lg:col-span-8 xl:col-span-9">
+              <div className="flex justify-end">
+                <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+                  {snapshot.demoLabel}
+                </div>
+              </div>
+
+              <div className="relative min-h-[280px]">
+                <ReactorGrid
+                  snapshot={snapshot}
+                  onSelectCell={(id) => engineRef.current?.selectCell(id)}
+                  onHoverCell={(id) => engineRef.current?.hoverCell(id)}
+                  onNextPage={() => engineRef.current?.nextPage()}
+                />
+                {activeCell && (
+                  <CellTooltip
+                    cell={activeCell}
+                    coreEth={snapshot.coreEth}
+                    totalChargeScore={totalChargeScore}
+                  />
+                )}
+              </div>
+
+              <p className="text-sm text-[var(--text-muted)]">
+                Tap a cell to see balance, hold time, charge ripeness and core share.
+              </p>
+            </div>
+
+            <aside className="order-2 flex flex-col gap-5 lg:order-1 lg:col-span-4 lg:sticky lg:top-[4.5rem] xl:col-span-3">
+              <RewardPanel snapshot={snapshot} />
+              <Gauges snapshot={snapshot} layout="stack" />
+            </aside>
+          </div>
+        </CommandPanel>
       </section>
 
-      <div id="buy">
+      <div id="buy" className="section-block pb-24 sm:pb-28">
         <Mechanics />
       </div>
+
+      <StatusRail snapshot={snapshot} />
     </>
   )
 }

@@ -1,6 +1,15 @@
 import { useEffect, useRef } from 'react'
 import { CORE_OVERHEAT_ETH } from '../config/contract'
 import { formatEth } from '../engine/demoEngine'
+import {
+  chamferRectPath,
+  drawGridScanlines,
+  drawHudBrackets,
+  drawHudScanline,
+  glowColor,
+  plasmaGradient,
+  roundRectPath,
+} from '../lib/reactorCanvas'
 
 interface CoreVesselProps {
   coreEth: number
@@ -51,7 +60,7 @@ export function CoreVessel({
     function resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 3)
       const w = container!.clientWidth
-      const h = Math.round(w * 0.72)
+      const h = Math.round(w * 0.78)
       canvas!.width = Math.round(w * dpr)
       canvas!.height = Math.round(h * dpr)
       canvas!.style.width = `${w}px`
@@ -63,94 +72,139 @@ export function CoreVessel({
       const { overheating: hot, meltdownActive: meltdown } = propsRef.current
       ctx!.clearRect(0, 0, w, h)
 
-      const pad = w * 0.08
-      const lidH = h * 0.1
-      const rx = w * 0.06
-      const innerX = pad
-      const innerY = pad + lidH * 0.35
-      const innerW = w - pad * 2
-      const innerH = h - innerY - pad * 0.6
+      const pad = w * 0.04
+      const frameX = pad
+      const frameY = pad * 0.6
+      const frameW = w - pad * 2
+      const frameH = h - pad * 1.4
+      const chamfer = Math.min(8, w * 0.04)
+      const headerH = h * 0.11
+      const footerH = h * 0.09
 
-      // ambient glow behind vessel
-      const glowColor = meltdown
-        ? `rgba(239, 68, 68, ${0.12 + glow * 0.08})`
+      const palette = meltdown
+        ? 'meltdown'
         : hot
-          ? `rgba(251, 191, 36, ${0.1 + glow * 0.06})`
-          : `rgba(34, 211, 238, ${0.08 + glow * 0.05})`
-      const glowGrad = ctx!.createRadialGradient(w / 2, h * 0.55, 0, w / 2, h * 0.55, w * 0.55)
-      glowGrad.addColorStop(0, glowColor)
+          ? 'meltdown'
+          : fill > 0.75
+            ? 'charged'
+            : fill > 0.2
+              ? 'charging'
+              : 'idle'
+
+      // ambient glow
+      const glowGrad = ctx!.createRadialGradient(w / 2, h * 0.5, 0, w / 2, h * 0.5, w * 0.58)
+      glowGrad.addColorStop(0, glowColor(palette, glow))
       glowGrad.addColorStop(1, 'rgba(0,0,0,0)')
       ctx!.fillStyle = glowGrad
       ctx!.fillRect(0, 0, w, h)
 
-      // vessel shell
-      roundRect(ctx!, innerX - 2, innerY - 2, innerW + 4, innerH + 4, rx + 2)
-      ctx!.fillStyle = 'rgba(26, 35, 48, 0.95)'
+      // HUD outer frame
+      chamferRectPath(ctx!, frameX, frameY, frameW, frameH, chamfer)
+      ctx!.fillStyle = 'rgba(6, 8, 12, 0.94)'
       ctx!.fill()
       ctx!.strokeStyle = meltdown
-        ? 'rgba(239, 68, 68, 0.55)'
+        ? 'rgba(248, 113, 113, 0.55)'
         : hot
           ? 'rgba(251, 191, 36, 0.45)'
           : 'rgba(34, 211, 238, 0.28)'
-      ctx!.lineWidth = 1.5
+      ctx!.lineWidth = 1.25
       ctx!.stroke()
 
-      // glass inner cavity
-      roundRect(ctx!, innerX, innerY, innerW, innerH, rx)
+      drawHudBrackets(ctx!, frameX, frameY, frameW, frameH, 0.85, 10)
+
+      // header strip
+      ctx!.save()
+      chamferRectPath(ctx!, frameX, frameY, frameW, headerH, chamfer)
+      ctx!.clip()
+      const hdr = ctx!.createLinearGradient(0, frameY, frameW, frameY)
+      hdr.addColorStop(0, 'rgba(34, 211, 238, 0.12)')
+      hdr.addColorStop(1, 'rgba(34, 211, 238, 0.02)')
+      ctx!.fillStyle = hdr
+      ctx!.fillRect(frameX, frameY, frameW, headerH)
+
+      ctx!.beginPath()
+      ctx!.arc(frameX + 12, frameY + headerH * 0.55, 3, 0, Math.PI * 2)
+      ctx!.fillStyle = meltdown
+        ? `rgba(248, 113, 113, ${0.7 + glow * 0.3})`
+        : hot
+          ? `rgba(251, 191, 36, ${0.65 + glow * 0.35})`
+          : `rgba(74, 222, 128, ${0.55 + glow * 0.35})`
+      ctx!.fill()
+
+      ctx!.font = '600 9px "IBM Plex Mono", ui-monospace, monospace'
+      ctx!.fillStyle = 'rgba(184, 197, 214, 0.7)'
+      ctx!.textAlign = 'left'
+      ctx!.textBaseline = 'middle'
+      ctx!.fillText('THE CORE · ACCUMULATOR', frameX + 20, frameY + headerH * 0.55)
+
+      ctx!.textAlign = 'right'
+      ctx!.fillStyle = meltdown ? 'rgba(248, 113, 113, 0.85)' : 'rgba(34, 211, 238, 0.75)'
+      ctx!.fillText(meltdown ? 'BREACH' : hot ? 'OVERHEAT' : 'NOMINAL', frameX + frameW - 10, frameY + headerH * 0.55)
+      ctx!.restore()
+
+      // chamber
+      const inset = 6
+      const cx = frameX + inset
+      const cy = frameY + headerH + inset * 0.5
+      const cw = frameW - inset * 2
+      const ch = frameH - headerH - footerH - inset * 1.5
+      const rx = Math.min(6, cw * 0.04)
+
+      roundRectPath(ctx!, cx, cy, cw, ch, rx)
       ctx!.save()
       ctx!.clip()
 
-      const cavityGrad = ctx!.createLinearGradient(0, innerY, 0, innerY + innerH)
-      cavityGrad.addColorStop(0, 'rgba(6, 8, 12, 0.95)')
-      cavityGrad.addColorStop(1, 'rgba(10, 14, 20, 0.98)')
+      const cavityGrad = ctx!.createLinearGradient(0, cy, 0, cy + ch)
+      cavityGrad.addColorStop(0, 'rgba(6, 8, 12, 0.98)')
+      cavityGrad.addColorStop(1, 'rgba(10, 14, 20, 0.99)')
       ctx!.fillStyle = cavityGrad
-      ctx!.fillRect(innerX, innerY, innerW, innerH)
+      ctx!.fillRect(cx, cy, cw, ch)
 
-      // liquid fill
+      drawGridScanlines(ctx!, cx, cy, cw, ch, 4)
+
       const clampedFill = Math.max(0.04, Math.min(1, fill))
-      const surfaceY = innerY + innerH * (1 - clampedFill)
+      const surfaceY = cy + ch * (1 - clampedFill)
+
+      // liquid fill with wave
+      const steps = Math.max(32, Math.floor(cw / 3))
+      const amp = Math.max(2, ch * 0.016)
 
       ctx!.beginPath()
-      ctx!.moveTo(innerX, innerY + innerH)
-      ctx!.lineTo(innerX, surfaceY)
-
-      const steps = Math.max(32, Math.floor(innerW / 3))
-      const amp = Math.max(2, innerH * 0.018)
+      ctx!.moveTo(cx, cy + ch)
+      ctx!.lineTo(cx, surfaceY)
       for (let i = 0; i <= steps; i++) {
         const t = i / steps
-        const x = innerX + innerW * t
+        const x = cx + cw * t
         const wave =
           Math.sin(t * Math.PI * 3.2 + phase) * amp +
           Math.sin(t * Math.PI * 5.1 + phase * 1.4) * amp * 0.55 +
           Math.sin(t * Math.PI * 1.8 + phase * 0.65) * amp * 0.35
         ctx!.lineTo(x, surfaceY + wave)
       }
-
-      ctx!.lineTo(innerX + innerW, innerY + innerH)
+      ctx!.lineTo(cx + cw, cy + ch)
       ctx!.closePath()
 
-      const liquidGrad = ctx!.createLinearGradient(0, surfaceY, 0, innerY + innerH)
-      if (meltdown) {
-        liquidGrad.addColorStop(0, 'rgba(248, 113, 113, 0.95)')
-        liquidGrad.addColorStop(0.45, 'rgba(239, 68, 68, 0.88)')
-        liquidGrad.addColorStop(1, 'rgba(127, 29, 29, 0.92)')
-      } else if (hot) {
-        liquidGrad.addColorStop(0, 'rgba(253, 224, 71, 0.95)')
-        liquidGrad.addColorStop(0.4, 'rgba(251, 191, 36, 0.9)')
-        liquidGrad.addColorStop(1, 'rgba(180, 83, 9, 0.88)')
-      } else {
-        liquidGrad.addColorStop(0, 'rgba(110, 231, 183, 0.95)')
-        liquidGrad.addColorStop(0.35, 'rgba(34, 211, 238, 0.88)')
-        liquidGrad.addColorStop(1, 'rgba(6, 78, 59, 0.92)')
-      }
-      ctx!.fillStyle = liquidGrad
+      const plasmaPal = meltdown ? 'meltdown' : hot ? 'meltdown' : fill > 0.6 ? 'charged' : 'charging'
+      ctx!.fillStyle = plasmaGradient(ctx!, cx, surfaceY, cx, cy + ch, plasmaPal)
       ctx!.fill()
+
+      // horizontal level segments
+      const levels = 6
+      for (let l = 0; l < levels; l++) {
+        const ly = cy + (ch * l) / (levels - 1)
+        ctx!.strokeStyle = 'rgba(34, 211, 238, 0.06)'
+        ctx!.lineWidth = 0.5
+        ctx!.beginPath()
+        ctx!.moveTo(cx + 4, ly)
+        ctx!.lineTo(cx + cw - 4, ly)
+        ctx!.stroke()
+      }
 
       // surface highlight
       ctx!.beginPath()
       for (let i = 0; i <= steps; i++) {
         const t = i / steps
-        const x = innerX + innerW * t
+        const x = cx + cw * t
         const wave =
           Math.sin(t * Math.PI * 3.2 + phase) * amp +
           Math.sin(t * Math.PI * 5.1 + phase * 1.4) * amp * 0.55 +
@@ -159,62 +213,67 @@ export function CoreVessel({
         else ctx!.lineTo(x, surfaceY + wave)
       }
       ctx!.strokeStyle = meltdown
-        ? 'rgba(254, 202, 202, 0.55)'
+        ? 'rgba(254, 202, 202, 0.5)'
         : hot
-          ? 'rgba(254, 240, 138, 0.5)'
-          : 'rgba(167, 243, 208, 0.45)'
-      ctx!.lineWidth = 1.2
-      ctx!.stroke()
-
-      // inner bubbles / particles
-      const bubbleCount = 6
-      for (let b = 0; b < bubbleCount; b++) {
-        const bx = innerX + innerW * (0.15 + ((b * 0.17 + phase * 0.08) % 0.7))
-        const by =
-          innerY +
-          innerH * (0.55 + 0.35 * ((b * 0.23 + phase * 0.04) % 1)) * clampedFill
-        const br = 1.2 + (b % 3) * 0.6
-        ctx!.beginPath()
-        ctx!.arc(bx, by, br, 0, Math.PI * 2)
-        ctx!.fillStyle = 'rgba(255,255,255,0.08)'
-        ctx!.fill()
-      }
-
-      // glass reflection
-      const reflectGrad = ctx!.createLinearGradient(innerX, innerY, innerX + innerW * 0.35, innerY)
-      reflectGrad.addColorStop(0, 'rgba(255,255,255,0.07)')
-      reflectGrad.addColorStop(1, 'rgba(255,255,255,0)')
-      ctx!.fillStyle = reflectGrad
-      ctx!.fillRect(innerX, innerY, innerW * 0.28, innerH)
-
-      ctx!.restore()
-
-      // core lid / hatch
-      const lidY = innerY - lidH * 0.55
-      const lidW = innerW * 0.72
-      const lidX = innerX + (innerW - lidW) / 2
-      roundRect(ctx!, lidX, lidY, lidW, lidH, lidH * 0.35)
-      const lidGrad = ctx!.createLinearGradient(lidX, lidY, lidX, lidY + lidH)
-      lidGrad.addColorStop(0, 'rgba(58, 74, 94, 0.95)')
-      lidGrad.addColorStop(1, 'rgba(26, 35, 48, 0.98)')
-      ctx!.fillStyle = lidGrad
-      ctx!.fill()
-      ctx!.strokeStyle = meltdown
-        ? 'rgba(239, 68, 68, 0.6)'
-        : hot
-          ? 'rgba(251, 191, 36, 0.5)'
-          : 'rgba(34, 211, 238, 0.35)'
+          ? 'rgba(254, 240, 138, 0.45)'
+          : 'rgba(167, 243, 208, 0.4)'
       ctx!.lineWidth = 1
       ctx!.stroke()
 
-      // lid glow strip
-      roundRect(ctx!, lidX + lidW * 0.12, lidY + lidH * 0.72, lidW * 0.76, lidH * 0.18, 2)
+      // side gauge ticks
+      for (let t = 0; t <= 5; t++) {
+        const ty = cy + (ch * t) / 5
+        ctx!.strokeStyle = 'rgba(34, 211, 238, 0.15)'
+        ctx!.lineWidth = 0.75
+        ctx!.beginPath()
+        ctx!.moveTo(cx + cw - 2, ty)
+        ctx!.lineTo(cx + cw + 2, ty)
+        ctx!.stroke()
+      }
+
+      drawHudScanline(ctx!, cx, cy, cw, ch, phase, 0.06)
+
+      // glass reflection
+      const reflectGrad = ctx!.createLinearGradient(cx, cy, cx + cw * 0.3, cy)
+      reflectGrad.addColorStop(0, 'rgba(255,255,255,0.06)')
+      reflectGrad.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx!.fillStyle = reflectGrad
+      ctx!.fillRect(cx, cy, cw * 0.22, ch)
+
+      ctx!.restore()
+
+      // footer readout band
+      const footerY = frameY + frameH - footerH
+      ctx!.fillStyle = 'rgba(34, 211, 238, 0.05)'
+      ctx!.fillRect(frameX + 1, footerY, frameW - 2, footerH - 1)
+
+      const fillPct = Math.round(clampedFill * 100)
+      ctx!.font = '700 10px "IBM Plex Mono", ui-monospace, monospace'
+      ctx!.textAlign = 'center'
+      ctx!.textBaseline = 'middle'
       ctx!.fillStyle = meltdown
-        ? `rgba(239, 68, 68, ${0.5 + glow * 0.3})`
+        ? 'rgba(248, 113, 113, 0.9)'
         : hot
-          ? `rgba(251, 191, 36, ${0.45 + glow * 0.25})`
-          : `rgba(34, 211, 238, ${0.35 + glow * 0.2})`
-      ctx!.fill()
+          ? 'rgba(251, 191, 36, 0.9)'
+          : 'rgba(74, 222, 128, 0.85)'
+      ctx!.fillText(`FILL ${fillPct}%`, frameX + frameW / 2, footerY + footerH * 0.52)
+
+      // footer progress track
+      const trackW = frameW * 0.6
+      const trackX = frameX + (frameW - trackW) / 2
+      const trackY = footerY + footerH * 0.82
+      ctx!.fillStyle = 'rgba(26, 35, 48, 0.95)'
+      ctx!.fillRect(trackX, trackY, trackW, 2)
+      const trackGrad = ctx!.createLinearGradient(trackX, 0, trackX + trackW, 0)
+      if (meltdown || hot) {
+        trackGrad.addColorStop(0, '#dc2626')
+        trackGrad.addColorStop(1, '#fbbf24')
+      } else {
+        trackGrad.addColorStop(0, '#16a34a')
+        trackGrad.addColorStop(1, '#22d3ee')
+      }
+      ctx!.fillStyle = trackGrad
+      ctx!.fillRect(trackX, trackY, trackW * clampedFill, 2)
     }
 
     function frame(now: number) {
@@ -230,7 +289,7 @@ export function CoreVessel({
       anim.glow = 0.5 + 0.5 * Math.sin(anim.phase * 2.1)
 
       const w = container!.clientWidth
-      const h = Math.round(w * 0.72)
+      const h = Math.round(w * 0.78)
       drawVessel(w, h, anim.fill, anim.phase, anim.glow)
 
       if (stabilityPctRef.current) {
@@ -298,16 +357,14 @@ export function CoreVessel({
         </div>
 
         <div
-          className="h-3 overflow-hidden rounded-full bg-steel-700/80"
+          className="stability-meter-track h-1.5 overflow-hidden rounded-full bg-steel-800"
           role="img"
           aria-label={`Core stability ${Math.round(stability)} percent`}
         >
           <div
             ref={stabilityBarRef}
-            className={`h-full rounded-full ${
-              stabilityLow
-                ? 'bg-gradient-to-r from-meltdown-600 via-amber-400 to-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.35)]'
-                : 'bg-gradient-to-r from-charge-600 via-cyan-400 to-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.25)]'
+            className={`stability-meter-fill h-full rounded-full transition-[width] duration-300 ${
+              stabilityLow ? '' : ''
             }`}
             style={{ width: `${stability}%` }}
           />
@@ -319,26 +376,4 @@ export function CoreVessel({
       </div>
     </div>
   )
-}
-
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
-  const radius = Math.min(r, w / 2, h / 2)
-  ctx.beginPath()
-  ctx.moveTo(x + radius, y)
-  ctx.lineTo(x + w - radius, y)
-  ctx.quadraticCurveTo(x + w, y, x + w, y + radius)
-  ctx.lineTo(x + w, y + h - radius)
-  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h)
-  ctx.lineTo(x + radius, y + h)
-  ctx.quadraticCurveTo(x, y + h, x, y + h - radius)
-  ctx.lineTo(x, y + radius)
-  ctx.quadraticCurveTo(x, y, x + radius, y)
-  ctx.closePath()
 }
