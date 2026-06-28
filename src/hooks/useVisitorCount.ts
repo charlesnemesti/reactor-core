@@ -11,10 +11,21 @@ function randomBase(): number {
   return BASE_MIN + Math.random() * (BASE_MAX - BASE_MIN)
 }
 
+function createSessionId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
 function getSessionId(): string {
   let id = sessionStorage.getItem(SESSION_KEY)
   if (!id) {
-    id = crypto.randomUUID()
+    id = createSessionId()
     sessionStorage.setItem(SESSION_KEY, id)
   }
   return id
