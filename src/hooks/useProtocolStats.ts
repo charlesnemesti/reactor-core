@@ -37,6 +37,7 @@ export function useProtocolStats() {
     enabled,
     placeholderData: EMPTY,
     refetchInterval: 12_000,
+    retry: 2,
     queryFn: async (): Promise<ProtocolStats> => {
       if (!client) return EMPTY
 
@@ -76,8 +77,8 @@ export function useProtocolStats() {
       ])
 
       const coreEth = Number(formatUnits(jarWei, 18))
-      const bufferS = Number(formatUnits(strength[0], 18))
-      const bufferSmax = Number(formatUnits(strength[1], 18))
+      const bufferS = Number(strength[0])
+      const bufferSmax = Number(strength[1])
       const stability =
         bufferSmax > 0 ? Math.max(0, Math.min(100, (bufferS / bufferSmax) * 100)) : 0
       const collapseTs = Number(roundMeta[2])

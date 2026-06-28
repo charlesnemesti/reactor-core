@@ -53,9 +53,14 @@ export function ReactorProvider({ children }: { children: ReactNode }) {
     data: protocol = LIVE_PROTOCOL_FALLBACK,
     isLoading: protocolLoading,
     isError: protocolError,
+    isSuccess: protocolOk,
   } = useProtocolStats()
-  const { data: holderData, isLoading: holdersLoading, isError: holdersError } =
-    useHolderCells(gridPage)
+  const {
+    data: holderData,
+    isLoading: holdersLoading,
+    isError: holdersError,
+    isSuccess: holdersOk,
+  } = useHolderCells(gridPage)
 
   useEffect(() => {
     if (live) return
@@ -90,13 +95,13 @@ export function ReactorProvider({ children }: { children: ReactNode }) {
     const loyal = cells.filter((c) => !c.ejected).length
 
     let demoLabel = `live · on-chain · ${totalHolders} rods · page ${gridPage + 1} · cycle ${protocol.cycle}`
-    if (protocolLoading) {
+    if (protocolLoading && !protocolOk) {
       demoLabel = 'live · syncing protocol…'
-    } else if (protocolError) {
+    } else if (protocolError && !protocolOk) {
       demoLabel = 'live · protocol read failed · retrying'
-    } else if (holdersLoading) {
+    } else if (holdersLoading && !holdersOk) {
       demoLabel = 'live · scanning holders…'
-    } else if (holdersError) {
+    } else if (holdersError && !holdersOk) {
       demoLabel = 'live · holder scan failed · retrying'
     } else if (totalHolders === 0) {
       demoLabel = `live · on-chain · awaiting first holders · cycle ${protocol.cycle}`
@@ -125,9 +130,11 @@ export function ReactorProvider({ children }: { children: ReactNode }) {
     protocol,
     protocolLoading,
     protocolError,
+    protocolOk,
     holderData,
     holdersLoading,
     holdersError,
+    holdersOk,
     selectedCellId,
     hoveredCellId,
     gridPage,

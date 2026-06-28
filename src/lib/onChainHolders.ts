@@ -13,25 +13,112 @@ const TRANSFER = parseAbiItem(
   'event Transfer(address indexed from, address indexed to, uint256 value)',
 )
 
+const BOOTED = parseAbiItem('event Booted(uint64 time, uint160 sqrtPriceX96)')
+
 const COLS = 6
 const PAGE_SIZE = 24
-const LOG_CHUNK = 9_000n
+/** Most free RPCs reject eth_getLogs ranges above ~100 blocks */
+const LOG_CHUNK = 99n
+const MIN_LOG_CHUNK = 10n
+
+let cachedLaunchBlock: bigint | null = null
 
 export async function estimateLaunchBlock(client: PublicClient): Promise<bigint> {
-  const [launchTime, latest] = await Promise.all([
-    client.readContract({
-      address: CORE_CA,
-      abi: reactorAbi,
-      functionName: 'launchTime',
-    }),
-    client.getBlockNumber(),
-  ])
+  if (cachedLaunchBlock !== null) return cachedLaunchBlock
+
+  const latest = await client.getBlockNumber()
+
+  try {
+    const bootBlock = await findBootBlock(client, latest)
+    if (bootBlock != null) {
+      cachedLaunchBlock = bootBlock
+      return cachedLaunchBlock
+    }
+  } catch {
+    // fall through to launchTime estimate
+  }
+
+  const launchTime = await client.readContract({
+    address: CORE_CA,
+    abi: reactorAbi,
+    functionName: 'launchTime',
+  })
 
   const now = BigInt(Math.floor(Date.now() / 1000))
   const elapsed = now > launchTime ? now - launchTime : 0n
-  const blocksAgo = elapsed / 12n + 500n
-  const from = latest > blocksAgo ? latest - blocksAgo : 0n
-  return from
+  const blocksAgo = elapsed / 12n + 1_000n
+  cachedLaunchBlock = latest > blocksAgo ? latest - blocksAgo : 0n
+  return cachedLaunchBlock
+}
+
+async function getTransferLogs(
+  client: PublicClient,
+  fromBlock: bigint,
+  toBlock: bigint,
+) {
+  const allLogs = []
+  let chunk = LOG_CHUNK
+
+  for (let start = fromBlock; start <= toBlock; ) {
+    let end = start + chunk - 1n > toBlock ? toBlock : start + chunk - 1n
+    let advanced = false
+
+    while (!advanced) {
+      try {
+        const logs = await client.getLogs({
+          address: CORE_CA,
+          event: TRANSFER,
+          fromBlock: start,
+          toBlock: end,
+          strict: true,
+        })
+        allLogs.push(...logs)
+        start = end + 1n
+        advanced = true
+      } catch {
+        chunk = chunk / 2n
+        if (chunk < MIN_LOG_CHUNK) {
+          throw new Error('eth_getLogs failed — configure VITE_RPC_URL with a dedicated RPC')
+        }
+        end = start + chunk - 1n > toBlock ? toBlock : start + chunk - 1n
+      }
+    }
+  }
+
+  return allLogs
+}
+
+async function findBootBlock(client: PublicClient, latest: bigint): Promise<bigint | null> {
+  let chunk = LOG_CHUNK
+
+  for (let end = latest; end > 0n; ) {
+    const start = end > chunk ? end - chunk : 0n
+    let advanced = false
+
+    while (!advanced) {
+      try {
+        const booted = await client.getLogs({
+          address: CORE_CA,
+          event: BOOTED,
+          fromBlock: start,
+          toBlock: end,
+          strict: true,
+        })
+        if (booted.length > 0 && booted[0].blockNumber != null) {
+          return booted[0].blockNumber
+        }
+        advanced = true
+      } catch {
+        chunk = chunk / 2n
+        if (chunk < MIN_LOG_CHUNK) return null
+      }
+    }
+
+    if (start === 0n) break
+    end = start - 1n
+  }
+
+  return null
 }
 
 export async function fetchHolderAddresses(
@@ -39,23 +126,14 @@ export async function fetchHolderAddresses(
   fromBlock: bigint,
 ): Promise<Address[]> {
   const latest = await client.getBlockNumber()
+  const logs = await getTransferLogs(client, fromBlock, latest)
   const holders = new Set<Address>()
 
-  for (let start = fromBlock; start <= latest; start += LOG_CHUNK) {
-    const end = start + LOG_CHUNK - 1n > latest ? latest : start + LOG_CHUNK - 1n
-    const logs = await client.getLogs({
-      address: CORE_CA,
-      event: TRANSFER,
-      fromBlock: start,
-      toBlock: end,
-    })
-
-    for (const log of logs) {
-      const from = log.args.from
-      const to = log.args.to
-      if (from && from !== zeroAddress) holders.add(from)
-      if (to && to !== zeroAddress) holders.add(to)
-    }
+  for (const log of logs) {
+    const from = log.args.from
+    const to = log.args.to
+    if (from && from !== zeroAddress) holders.add(from)
+    if (to && to !== zeroAddress) holders.add(to)
   }
 
   return [...holders]

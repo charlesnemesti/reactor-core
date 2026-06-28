@@ -19,6 +19,7 @@ export function useHolderCells(page: number) {
     placeholderData: { cells: [], totalHolders: 0 },
     staleTime: 30_000,
     refetchInterval: 30_000,
+    retry: 2,
     queryFn: async (): Promise<{ cells: ReactorCell[]; totalHolders: number }> => {
       if (!client) return { cells: [], totalHolders: 0 }
 
