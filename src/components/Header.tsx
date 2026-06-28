@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useReactorOptional } from '../context/ReactorContext'
 import { getLiveTelemetryLines } from '../engine/telemetry'
+import { TOKEN_SYMBOL } from '../config/contract'
 import { BuyCoreButton } from './BuyCoreButton'
 import { CommandPanel } from './CommandPanel'
 import { ConnectWalletButton } from './ConnectWalletButton'
@@ -84,7 +85,7 @@ export function Header() {
                 REACTOR
               </div>
               <div className="font-mono text-[9px] uppercase tracking-[0.28em] text-charge-400 sm:text-[10px]">
-                $CORE
+                ${TOKEN_SYMBOL}
                 {snapshot && (
                   <span className="ml-2 text-[var(--text-muted)]">· C{snapshot.cycle}</span>
                 )}

@@ -1,17 +1,19 @@
-/** REACTOR ($CORE) — contract & protocol configuration */
+/** REACTOR ($REACTOR) — contract & protocol configuration */
 
 import { ENV, isAddressDeployed } from './env'
 
-export const TOKEN_SYMBOL = 'CORE'
+export const TOKEN_SYMBOL = 'REACTOR'
 export const TOKEN_NAME = 'REACTOR'
 export const TOKEN_DECIMALS = 18
 export const TOKEN_INITIAL_SUPPLY = 1_000_000
 
-/** $CORE token — from VITE_CORE_CA at build time */
+/** $REACTOR token — from VITE_CORE_CA at build time (mainnet default in env.ts) */
 export const CORE_CA = ENV.coreCa
 
-/** Reactor hook — from VITE_REACTOR_HOOK_CA */
-export const REACTOR_HOOK_CA = ENV.reactorHookCa
+/** Reactor hook — same deployment as $REACTOR token */
+export const REACTOR_HOOK_CA = isAddressDeployed(ENV.reactorHookCa)
+  ? ENV.reactorHookCa
+  : ENV.coreCa
 
 export const CA_PLACEHOLDER_LABEL = 'TBA'
 export const TWITTER_URL = 'https://x.com/reactor_core'

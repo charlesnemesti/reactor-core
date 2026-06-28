@@ -1,6 +1,6 @@
 import { formatEth, formatNumber, getDemoWalletStats } from '../engine/demoEngine'
 import type { ReactorSnapshot } from '../engine/types'
-import { isCaDeployed, LAUNCH_MESSAGE, shortenAddress } from '../config/contract'
+import { isCaDeployed, LAUNCH_MESSAGE, shortenAddress, TOKEN_SYMBOL } from '../config/contract'
 import { useReactorWallet } from '../hooks/useReactorWallet'
 import { ClaimButton } from './ClaimButton'
 import { CommandPanel } from './CommandPanel'
@@ -20,17 +20,26 @@ export function RewardPanel({ snapshot, className = '' }: RewardPanelProps) {
     ? `Your cell · ${shortenAddress(wallet.address, 3)}`
     : 'Your reward · Claimable'
 
-  const balance = useOnChain && wallet.formatted.balance
-    ? `${wallet.formatted.balance} CORE`
-    : `${formatNumber(demo.balance)} CORE`
+  const balance =
+    useOnChain && wallet.formatted.balance
+      ? `${wallet.formatted.balance} ${TOKEN_SYMBOL}`
+      : live
+        ? '—'
+        : `${formatNumber(demo.balance)} ${TOKEN_SYMBOL}`
 
-  const chargeScore = useOnChain && wallet.formatted.chargeScore
-    ? wallet.formatted.chargeScore
-    : formatNumber(demo.chargeScore)
+  const chargeScore =
+    useOnChain && wallet.formatted.chargeScore
+      ? wallet.formatted.chargeScore
+      : live
+        ? '—'
+        : formatNumber(demo.chargeScore)
 
-  const claimableEth = useOnChain && wallet.formatted.claimableEth
-    ? wallet.formatted.claimableEth
-    : formatEth(demo.claimableEth)
+  const claimableEth =
+    useOnChain && wallet.formatted.claimableEth
+      ? wallet.formatted.claimableEth
+      : live
+        ? '0.000'
+        : formatEth(demo.claimableEth)
 
   const estShare =
     snapshot.meltdownActive || (useOnChain && Number(claimableEth) > 0)
@@ -45,10 +54,10 @@ export function RewardPanel({ snapshot, className = '' }: RewardPanelProps) {
       </div>
       <p className="mb-6 text-sm text-[var(--text-muted)]">
         {useOnChain
-          ? wallet.hookLive
-            ? 'On-chain claimable from the reactor hook'
-            : 'Wallet connected · hook address pending'
-          : 'ready to claim from the last meltdown (demo)'}
+          ? 'On-chain claimable from the reactor'
+          : live
+            ? 'Connect wallet to load your cell'
+            : 'ready to claim from the last meltdown (demo)'}
       </p>
 
       <div className="grid grid-cols-1 gap-4 border-t border-[var(--border-subtle)] pt-5 sm:grid-cols-3">

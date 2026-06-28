@@ -67,23 +67,39 @@ export function ReactorGrid({
             width: gridWidth,
             gridTemplateColumns: `repeat(${COLS}, ${dims.cellW}px)`,
             gap: GAP,
+            minHeight: dims.cellH * 2 + GAP,
           }}
         >
-          {snapshot.cells.map((cell) => (
-            <FuelRodCell
-              key={cell.id}
-              cell={cell}
-              width={dims.cellW}
-              height={dims.cellH}
-              selected={snapshot.selectedCellId === cell.id}
-              hovered={snapshot.hoveredCellId === cell.id}
-              meltdown={snapshot.meltdownActive}
-              onSelect={() =>
-                onSelectCell(snapshot.selectedCellId === cell.id ? null : cell.id)
-              }
-              onHover={(active) => onHoverCell(active ? cell.id : null)}
-            />
-          ))}
+          {snapshot.cells.length === 0 ? (
+            <div
+              className="col-span-full flex flex-col items-center justify-center rounded-lg border border-dashed border-[var(--border-subtle)] px-6 py-12 text-center"
+              style={{ gridColumn: `1 / -1` }}
+            >
+              <p className="mb-2 font-mono text-sm uppercase tracking-wider text-cyan-400">
+                Grid empty
+              </p>
+              <p className="max-w-sm text-sm leading-relaxed text-[var(--text-muted)]">
+                No holders on-chain yet. The first buy mints a fuel cell here — connect wallet and
+                buy $REACTOR to appear in the live map.
+              </p>
+            </div>
+          ) : (
+            snapshot.cells.map((cell) => (
+              <FuelRodCell
+                key={cell.id}
+                cell={cell}
+                width={dims.cellW}
+                height={dims.cellH}
+                selected={snapshot.selectedCellId === cell.id}
+                hovered={snapshot.hoveredCellId === cell.id}
+                meltdown={snapshot.meltdownActive}
+                onSelect={() =>
+                  onSelectCell(snapshot.selectedCellId === cell.id ? null : cell.id)
+                }
+                onHover={(active) => onHoverCell(active ? cell.id : null)}
+              />
+            ))
+          )}
         </div>
       </div>
 

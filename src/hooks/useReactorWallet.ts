@@ -5,12 +5,10 @@ import {
   useReadContract,
   useReadContracts,
 } from 'wagmi'
-import { erc20Abi } from '../abis/erc20'
-import { reactorHookAbi } from '../abis/reactorHook'
+import { reactorAbi } from '../abis/reactor'
 import {
   CORE_CA,
   isCaDeployed,
-  isHookDeployed,
   LAUNCH_MESSAGE,
   REACTOR_HOOK_CA,
   TOKEN_DECIMALS,
@@ -23,12 +21,12 @@ export function useReactorWallet() {
   const isConnected = status === 'connected'
   const chainId = useChainId()
   const live = isCaDeployed()
-  const hookLive = isHookDeployed()
+  const hookLive = live
   const wrongChain = isConnected && chainId !== TARGET_CHAIN_ID
 
   const balanceQuery = useReadContract({
     address: CORE_CA,
-    abi: erc20Abi,
+    abi: reactorAbi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
     query: {
@@ -42,14 +40,14 @@ export function useReactorWallet() {
       ? ([
           {
             address: REACTOR_HOOK_CA,
-            abi: reactorHookAbi,
-            functionName: 'claimable',
+            abi: reactorAbi,
+            functionName: 'claimableOf',
             args: [address],
           },
           {
             address: REACTOR_HOOK_CA,
-            abi: reactorHookAbi,
-            functionName: 'chargeScore',
+            abi: reactorAbi,
+            functionName: 'honeyOf',
             args: [address],
           },
         ] as const)
@@ -71,7 +69,7 @@ export function useReactorWallet() {
       balance: live && isConnected ? formatTokenAmount(coreBalance, TOKEN_DECIMALS) : null,
       claimableEth: hookLive && isConnected ? formatEthFromWei(claimableWei) : null,
       chargeScore:
-        hookLive && isConnected ? formatTokenAmount(chargeScoreRaw, 0, 0) : null,
+        hookLive && isConnected ? formatTokenAmount(chargeScoreRaw, TOKEN_DECIMALS, 0) : null,
     }),
     [live, hookLive, isConnected, coreBalance, claimableWei, chargeScoreRaw],
   )

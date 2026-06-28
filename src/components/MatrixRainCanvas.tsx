@@ -23,7 +23,7 @@ export function MatrixRainCanvas({
 
     let raf = 0
     let start = 0
-    const chars = '01αβ∫Σ∂0123456789ABCDEFCORE'
+    const chars = '01αβ∫Σ∂0123456789ABCDEFREACTOR'
     const columns: { x: number; y: number; speed: number; chars: string[] }[] = []
     const fadeStart = durationMs * 0.72
     const fadeSpan = durationMs * 0.28

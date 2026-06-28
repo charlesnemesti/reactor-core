@@ -1,5 +1,6 @@
 import { formatDuration, formatEth, formatNumber } from '../engine/demoEngine'
 import type { ReactorCell } from '../engine/types'
+import { TOKEN_SYMBOL } from '../config/contract'
 import { CommandPanel } from './CommandPanel'
 
 interface CellTooltipProps {
@@ -31,7 +32,7 @@ export function CellTooltip({ cell, coreEth, totalChargeScore }: CellTooltipProp
       </div>
 
       <dl className="grid grid-cols-2 gap-3 text-sm">
-        <TooltipStat label="Balance" value={`${formatNumber(cell.balance)} CORE`} />
+        <TooltipStat label="Balance" value={`${formatNumber(cell.balance)} ${TOKEN_SYMBOL}`} />
         <TooltipStat label="Held" value={formatDuration(cell.heldMs)} />
         <TooltipStat label="Charge ripeness" value={ripeness} />
         <TooltipStat label="Weight" value={`${cell.weight.toFixed(1)}×`} />

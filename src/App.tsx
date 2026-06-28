@@ -30,7 +30,7 @@ export default function App() {
               <footer className="page-shell py-8 pb-24 sm:pb-8">
                 <CommandPanel scanline={false} className="py-4 text-center">
                   <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
-                    REACTOR ($CORE) · demo preview · not financial advice
+                    REACTOR ($REACTOR) · demo preview · not financial advice
                   </p>
                 </CommandPanel>
               </footer>

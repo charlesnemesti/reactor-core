@@ -1,4 +1,4 @@
-import { getUniswapBuyUrl, isCaDeployed } from '../config/contract'
+import { getUniswapBuyUrl, isCaDeployed, TOKEN_SYMBOL } from '../config/contract'
 import { useReactorWallet } from '../hooks/useReactorWallet'
 
 interface BuyCoreButtonProps {
@@ -17,7 +17,7 @@ export function BuyCoreButton({ className = '', compact = false }: BuyCoreButton
         className={`btn-primary btn-beam ${compact ? '!px-3 !py-2 !text-[10px]' : ''} ${className}`}
         title="Contract not deployed yet"
       >
-        Buy CORE
+        Buy {TOKEN_SYMBOL}
       </a>
     )
   }
@@ -29,7 +29,7 @@ export function BuyCoreButton({ className = '', compact = false }: BuyCoreButton
         className={`btn-primary btn-beam ${compact ? '!px-3 !py-2 !text-[10px]' : ''} ${className}`}
         title="Connect wallet first"
       >
-        Buy CORE
+        Buy {TOKEN_SYMBOL}
       </a>
     )
   }
@@ -40,9 +40,9 @@ export function BuyCoreButton({ className = '', compact = false }: BuyCoreButton
       target="_blank"
       rel="noopener noreferrer"
       className={`btn-primary btn-beam ${compact ? '!px-3 !py-2 !text-[10px]' : ''} ${className}`}
-      title={live ? 'Swap ETH → CORE on Uniswap' : undefined}
+      title={live ? `Swap ETH → ${TOKEN_SYMBOL} on Uniswap` : undefined}
     >
-      Buy CORE
+      Buy {TOKEN_SYMBOL}
     </a>
   )
 }

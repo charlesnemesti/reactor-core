@@ -1,5 +1,5 @@
 import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
-import { reactorHookAbi } from '../abis/reactorHook'
+import { reactorAbi } from '../abis/reactor'
 import { REACTOR_HOOK_CA } from '../config/contract'
 import { useReactorWallet } from '../hooks/useReactorWallet'
 
@@ -23,7 +23,7 @@ export function ClaimButton({ disabled = false, className = '' }: ClaimButtonPro
     reset()
     writeContract({
       address: REACTOR_HOOK_CA,
-      abi: reactorHookAbi,
+      abi: reactorAbi,
       functionName: 'claim',
     })
   }
