@@ -8,12 +8,11 @@ import {
 import { reactorAbi } from '../abis/reactor'
 import { CORE_CA, shortenAddress, TOKEN_DECIMALS } from '../config/contract'
 import type { ReactorCell } from '../engine/types'
+import { estimateLaunchBlock } from '../lib/reactorV4Reads'
 
 const TRANSFER = parseAbiItem(
   'event Transfer(address indexed from, address indexed to, uint256 value)',
 )
-
-const BOOTED = parseAbiItem('event Booted(uint64 time, uint160 sqrtPriceX96)')
 
 const COLS = 6
 const PAGE_SIZE = 24
@@ -21,35 +20,7 @@ const PAGE_SIZE = 24
 const LOG_CHUNK = 99n
 const MIN_LOG_CHUNK = 10n
 
-let cachedLaunchBlock: bigint | null = null
-
-export async function estimateLaunchBlock(client: PublicClient): Promise<bigint> {
-  if (cachedLaunchBlock !== null) return cachedLaunchBlock
-
-  const latest = await client.getBlockNumber()
-
-  try {
-    const bootBlock = await findBootBlock(client, latest)
-    if (bootBlock != null) {
-      cachedLaunchBlock = bootBlock
-      return cachedLaunchBlock
-    }
-  } catch {
-    // fall through to launchTime estimate
-  }
-
-  const launchTime = await client.readContract({
-    address: CORE_CA,
-    abi: reactorAbi,
-    functionName: 'launchTime',
-  })
-
-  const now = BigInt(Math.floor(Date.now() / 1000))
-  const elapsed = now > launchTime ? now - launchTime : 0n
-  const blocksAgo = elapsed / 12n + 1_000n
-  cachedLaunchBlock = latest > blocksAgo ? latest - blocksAgo : 0n
-  return cachedLaunchBlock
-}
+export { estimateLaunchBlock }
 
 async function getTransferLogs(
   client: PublicClient,
@@ -88,39 +59,6 @@ async function getTransferLogs(
   return allLogs
 }
 
-async function findBootBlock(client: PublicClient, latest: bigint): Promise<bigint | null> {
-  let chunk = LOG_CHUNK
-
-  for (let end = latest; end > 0n; ) {
-    const start = end > chunk ? end - chunk : 0n
-    let advanced = false
-
-    while (!advanced) {
-      try {
-        const booted = await client.getLogs({
-          address: CORE_CA,
-          event: BOOTED,
-          fromBlock: start,
-          toBlock: end,
-          strict: true,
-        })
-        if (booted.length > 0 && booted[0].blockNumber != null) {
-          return booted[0].blockNumber
-        }
-        advanced = true
-      } catch {
-        chunk = chunk / 2n
-        if (chunk < MIN_LOG_CHUNK) return null
-      }
-    }
-
-    if (start === 0n) break
-    end = start - 1n
-  }
-
-  return null
-}
-
 export async function fetchHolderAddresses(
   client: PublicClient,
   fromBlock: bigint,
@@ -146,6 +84,12 @@ export async function buildHolderCells(
 ): Promise<{ cells: ReactorCell[]; totalHolders: number }> {
   if (addresses.length === 0) return { cells: [], totalHolders: 0 }
 
+  const currentRound = (await client.readContract({
+    address: CORE_CA,
+    abi: reactorAbi,
+    functionName: 'round',
+  })) as number
+
   const balanceResults = await client.multicall({
     contracts: addresses.map((address) => ({
       address: CORE_CA,
@@ -159,14 +103,14 @@ export async function buildHolderCells(
   const active: Address[] = []
   for (let i = 0; i < addresses.length; i++) {
     const row = balanceResults[i]
-    if (row.status === 'success' && row.result > 0n) {
+    if (row.status === 'success' && (row.result as bigint) > 0n) {
       active.push(addresses[i])
     }
   }
 
   if (active.length === 0) return { cells: [], totalHolders: 0 }
 
-  const [balanceActive, honeyResults, weightResults, cellResults] = await Promise.all([
+  const [balanceActive, energyResults, eligibleResults, cellResults] = await Promise.all([
     client.multicall({
       contracts: active.map((address) => ({
         address: CORE_CA,
@@ -180,7 +124,7 @@ export async function buildHolderCells(
       contracts: active.map((address) => ({
         address: CORE_CA,
         abi: reactorAbi,
-        functionName: 'honeyOf' as const,
+        functionName: 'energyOf' as const,
         args: [address] as const,
       })),
       allowFailure: true,
@@ -189,7 +133,7 @@ export async function buildHolderCells(
       contracts: active.map((address) => ({
         address: CORE_CA,
         abi: reactorAbi,
-        functionName: 'weightOf' as const,
+        functionName: 'isEligible' as const,
         args: [address] as const,
       })),
       allowFailure: true,
@@ -205,47 +149,48 @@ export async function buildHolderCells(
     }),
   ])
 
-  const nowSec = BigInt(Math.floor(Date.now() / 1000))
   const ranked = active
     .map((address, i) => {
-      const honey =
-        honeyResults[i].status === 'success' ? (honeyResults[i].result as bigint) : 0n
-      const weightRaw =
-        weightResults[i].status === 'success' ? Number(weightResults[i].result as number) : 10
+      const energy =
+        energyResults[i].status === 'success' ? (energyResults[i].result as bigint) : 0n
+      const eligible =
+        eligibleResults[i].status === 'success' ? (eligibleResults[i].result as boolean) : false
       const cellData =
         cellResults[i].status === 'success'
           ? (cellResults[i].result as readonly [
               bigint,
               bigint,
-              bigint,
-              bigint,
               number,
-              bigint,
-              bigint,
+              number,
+              boolean,
             ])
           : null
       const balance =
         balanceActive[i].status === 'success' ? (balanceActive[i].result as bigint) : 0n
 
-      const honeyLastTs = cellData ? Number(cellData[2]) : 0
-      const heldMs = honeyLastTs > 0 ? Number(nowSec - BigInt(honeyLastTs)) * 1000 : 0
       const balanceNum = Number(formatUnits(balance, TOKEN_DECIMALS))
-      const honeyNum = Number(formatUnits(honey, TOKEN_DECIMALS))
+      const energyNum = Number(formatUnits(energy, TOKEN_DECIMALS))
+      const honeyStored = cellData ? Number(formatUnits(cellData[0], TOKEN_DECIMALS)) : 0
+      const roundOf = cellData ? Number(cellData[2]) : 0
+      const countedEligible = cellData ? cellData[4] : false
       const maturity =
-        balanceNum > 0 ? Math.min(1, honeyNum / (balanceNum * 4 + 1)) : 0
+        balanceNum > 0 ? Math.min(1, energyNum / (balanceNum * 4 + 1)) : 0
+      const roundsHeld = Math.max(0, Number(currentRound) - roundOf)
 
       return {
         address,
-        honey,
+        energy,
         balance,
         balanceNum,
-        honeyNum,
-        weight: weightRaw / 10,
-        heldMs,
+        energyNum,
+        eligible,
+        countedEligible,
         maturity,
+        heldMs: roundsHeld * 3_600_000,
+        honeyStored,
       }
     })
-    .sort((a, b) => (a.honey > b.honey ? -1 : a.honey < b.honey ? 1 : 0))
+    .sort((a, b) => (a.energy > b.energy ? -1 : a.energy < b.energy ? 1 : 0))
 
   const pageStart = page * PAGE_SIZE
   const slice = ranked.slice(pageStart, pageStart + PAGE_SIZE)
@@ -257,11 +202,11 @@ export async function buildHolderCells(
       id: `live-${row.address}`,
       address: shortenAddress(row.address, 4),
       balance: row.balanceNum,
-      chargeScore: row.honeyNum,
+      chargeScore: row.energyNum,
       maturity: row.maturity,
       heldMs: row.heldMs,
-      weight: row.weight,
-      ejected: row.balance === 0n,
+      weight: row.countedEligible ? 1.0 : row.eligible ? 1.0 : 0.1,
+      ejected: !row.eligible,
       row: gridRow,
       col,
     }

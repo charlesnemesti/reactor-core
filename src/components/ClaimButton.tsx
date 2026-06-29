@@ -9,7 +9,7 @@ interface ClaimButtonProps {
 }
 
 export function ClaimButton({ disabled = false, className = '' }: ClaimButtonProps) {
-  const { isConnected, wrongChain, hookLive, formatted } = useReactorWallet()
+  const { isConnected, wrongChain, hookLive, formatted, claimRound } = useReactorWallet()
   const { writeContract, data: txHash, isPending, error, reset } = useWriteContract()
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -17,14 +17,17 @@ export function ClaimButton({ disabled = false, className = '' }: ClaimButtonPro
   })
 
   const claimable = Number(formatted.claimableEth ?? 0)
-  const canClaim = hookLive && isConnected && !wrongChain && claimable > 0 && !disabled
+  const canClaim =
+    hookLive && isConnected && !wrongChain && claimable > 0 && claimRound != null && !disabled
 
   function handleClaim() {
+    if (claimRound == null) return
     reset()
     writeContract({
       address: REACTOR_HOOK_CA,
       abi: reactorAbi,
       functionName: 'claim',
+      args: [claimRound],
     })
   }
 

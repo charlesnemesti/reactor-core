@@ -1,7 +1,7 @@
 /** Vite env — set in Vercel / .env.local before launch */
 
 const ZERO = '0x0000000000000000000000000000000000000000' as const
-const DEFAULT_CORE_CA = '0xA86986Fb2396f9826FF03BAF67B21FCf2F7b20cC' as const
+const DEFAULT_CORE_CA = '0xc3b7da17a4A96350a07a2378e4834E2201808044' as const
 
 function addressFromEnv(value: string | undefined): `0x${string}` {
   if (value && /^0x[a-fA-F0-9]{40}$/.test(value)) return value as `0x${string}`

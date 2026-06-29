@@ -43,48 +43,45 @@ export function useProtocolStats() {
     queryFn: async (): Promise<ProtocolStats> => {
       if (!client) return EMPTY
 
-      const roundNum = await client.readContract({
-        address: CORE_CA,
-        abi: reactorAbi,
-        functionName: 'round',
-      })
-
-      const [jarWei, strength, honeyTotal, eligible, roundMeta] = await Promise.all([
-        client.readContract({
-          address: CORE_CA,
-          abi: reactorAbi,
-          functionName: 'jarEth',
-        }),
-        client.readContract({
-          address: CORE_CA,
-          abi: reactorAbi,
-          functionName: 'strengthNow',
-        }),
-        client.readContract({
-          address: CORE_CA,
-          abi: reactorAbi,
-          functionName: 'honeyTotalStored',
-        }),
-        client.readContract({
-          address: CORE_CA,
-          abi: reactorAbi,
-          functionName: 'eligibleWeighted',
-        }),
-        client.readContract({
-          address: CORE_CA,
-          abi: reactorAbi,
-          functionName: 'rounds',
-          args: [roundNum],
-        }),
-      ])
+      const [jarWei, strengthRaw, strengthPct, strengthScale, honeyTotal, currentRound] =
+        await Promise.all([
+          client.readContract({
+            address: CORE_CA,
+            abi: reactorAbi,
+            functionName: 'jarEth',
+          }),
+          client.readContract({
+            address: CORE_CA,
+            abi: reactorAbi,
+            functionName: 'strength',
+          }),
+          client.readContract({
+            address: CORE_CA,
+            abi: reactorAbi,
+            functionName: 'strengthPercent',
+          }),
+          client.readContract({
+            address: CORE_CA,
+            abi: reactorAbi,
+            functionName: 'STRENGTH_SCALE',
+          }),
+          client.readContract({
+            address: CORE_CA,
+            abi: reactorAbi,
+            functionName: 'totalEligibleHoney',
+          }),
+          client.readContract({
+            address: CORE_CA,
+            abi: reactorAbi,
+            functionName: 'round',
+          }),
+        ]) as [bigint, number, bigint, number, bigint, number]
 
       const coreEth = Number(formatUnits(jarWei, 18))
-      const bufferS = Number(strength[0])
-      const bufferSmax = Number(strength[1])
-      const stability =
-        bufferSmax > 0 ? Math.max(0, Math.min(100, (bufferS / bufferSmax) * 100)) : 0
-      const collapseTs = Number(roundMeta[2])
-      const meltdownActive = bufferSmax > 0 && strength[0] === 0n && collapseTs > 0
+      const stability = Math.max(0, Math.min(100, Number(strengthPct)))
+      const bufferS = Number(strengthRaw)
+      const bufferSmax = Number(strengthScale)
+      const meltdownActive = strengthRaw === 0 && jarWei > 0n
       const meltdownFlash =
         !meltdownActive && coreEth >= CORE_OVERHEAT_ETH && stability < 35
 
@@ -93,11 +90,11 @@ export function useProtocolStats() {
         stability,
         bufferS,
         bufferSmax,
-        cycle: Number(roundNum),
+        cycle: Number(currentRound),
         meltdownActive,
         meltdownFlash,
         honeyTotal: Number(formatUnits(honeyTotal, 18)),
-        eligibleWeighted: Number(formatUnits(eligible, 18)),
+        eligibleWeighted: Number(formatUnits(honeyTotal, 18)),
       }
     },
   })
