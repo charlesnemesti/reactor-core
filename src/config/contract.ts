@@ -16,7 +16,7 @@ export const REACTOR_HOOK_CA = isAddressDeployed(ENV.reactorHookCa)
   : ENV.coreCa
 
 export const CA_PLACEHOLDER_LABEL = 'TBA'
-export const TWITTER_URL = 'https://x.com/reactor_core'
+export const TWITTER_URL = 'https://x.com/ReactorCoinV4'
 
 export function isCaDeployed(address: string = CORE_CA): boolean {
   return isAddressDeployed(address as `0x${string}`)
