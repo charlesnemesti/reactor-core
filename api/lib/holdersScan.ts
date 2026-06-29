@@ -5,60 +5,84 @@ import {
   parseAbiItem,
   zeroAddress,
 } from 'viem'
-import { reactorAbi } from '../abis/reactor'
-import {
-  CORE_CA,
-  REACTOR_HOOK_CA,
-  UNISWAP_V4_POOL_MANAGER,
-  shortenAddress,
-  TOKEN_DECIMALS,
-} from '../config/contract'
-import { ENV } from '../config/env'
-import type { ReactorCell } from '../engine/types'
-import { estimateLaunchBlock } from './reactorV4Reads'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const reactorAbi = JSON.parse(
+  readFileSync(join(__dirname, '../../src/abis/reactorV4.json'), 'utf8'),
+)
+
+const CORE_CA = (process.env.VITE_CORE_CA ??
+  process.env.CORE_CA ??
+  '0xc3b7da17a4A96350a07a2378e4834E2201808044') as `0x${string}`
+const POOL_MANAGER = '0x000000000004444c5dc75cB358380D2e3dE08A90' as const
+const TOKEN_DECIMALS = 18
 const TRANSFER = parseAbiItem(
   'event Transfer(address indexed from, address indexed to, uint256 value)',
 )
+const ROUND_OPENED = parseAbiItem('event RoundOpened(uint32 indexed round)')
 
 const COLS = 6
-export const HOLDERS_PAGE_SIZE = 24
+const PAGE_SIZE = 24
 const LOG_CHUNK = 99n
 const MIN_LOG_CHUNK = 10n
-/** Public RPCs only serve ~100 blocks of logs without an archive key */
-export const RECENT_LOG_WINDOW = 99n
+const RECENT_LOG_WINDOW = 99n
 
 const EXCLUDED = new Set(
-  [zeroAddress, CORE_CA, REACTOR_HOOK_CA, UNISWAP_V4_POOL_MANAGER].map((a) => a.toLowerCase()),
+  [zeroAddress, CORE_CA, POOL_MANAGER].map((a) => a.toLowerCase()),
 )
 
-export { estimateLaunchBlock }
-
-export async function resolveScanFromBlock(
-  client: PublicClient,
-  allowArchive: boolean,
-): Promise<bigint> {
-  const latest = await client.getBlockNumber()
-  const recentFrom = latest > RECENT_LOG_WINDOW ? latest - RECENT_LOG_WINDOW : 0n
-
-  if (!allowArchive && !ENV.rpcUrl) {
-    return recentFrom
-  }
-
-  try {
-    const launch = await estimateLaunchBlock(client)
-    if (!allowArchive && launch < recentFrom) return recentFrom
-    return launch
-  } catch {
-    return recentFrom
-  }
+function shortenAddress(address: string, chars = 4): string {
+  return `${address.slice(0, 2 + chars)}…${address.slice(-chars)}`
 }
 
-async function getTransferLogs(
-  client: PublicClient,
-  fromBlock: bigint,
-  toBlock: bigint,
-) {
+async function findRoundOpenedBlock(client: PublicClient, latest: bigint) {
+  let chunk = LOG_CHUNK
+  for (let end = latest; end > 0n; ) {
+    const start = end > chunk ? end - chunk : 0n
+    let advanced = false
+    while (!advanced) {
+      try {
+        const logs = await client.getLogs({
+          address: CORE_CA,
+          event: ROUND_OPENED,
+          fromBlock: start,
+          toBlock: end,
+          strict: true,
+        })
+        if (logs.length > 0 && logs[0].blockNumber != null) return logs[0].blockNumber
+        advanced = true
+      } catch {
+        chunk /= 2n
+        if (chunk < MIN_LOG_CHUNK) return null
+      }
+    }
+    if (start === 0n) break
+    end = start - 1n
+  }
+  return null
+}
+
+async function estimateLaunchBlock(client: PublicClient): Promise<bigint> {
+  const latest = await client.getBlockNumber()
+  const opened = await findRoundOpenedBlock(client, latest)
+  if (opened != null) return opened
+
+  const lastTs = (await client.readContract({
+    address: CORE_CA,
+    abi: reactorAbi,
+    functionName: 'lastGlobalUpdateTs',
+  })) as bigint
+
+  const now = BigInt(Math.floor(Date.now() / 1000))
+  const elapsed = now > lastTs ? now - lastTs : 0n
+  const blocksAgo = elapsed / 12n + 50n
+  return latest > blocksAgo ? latest - blocksAgo : 0n
+}
+
+async function getTransferLogs(client: PublicClient, fromBlock: bigint, toBlock: bigint) {
   const allLogs = []
   let chunk = LOG_CHUNK
 
@@ -79,10 +103,8 @@ async function getTransferLogs(
         start = end + 1n
         advanced = true
       } catch {
-        chunk = chunk / 2n
-        if (chunk < MIN_LOG_CHUNK) {
-          throw new Error('eth_getLogs failed — set VITE_RPC_URL or RPC_URL on Vercel')
-        }
+        chunk /= 2n
+        if (chunk < MIN_LOG_CHUNK) throw new Error('eth_getLogs failed on server RPC')
         end = start + chunk - 1n > toBlock ? toBlock : start + chunk - 1n
       }
     }
@@ -91,10 +113,7 @@ async function getTransferLogs(
   return allLogs
 }
 
-export async function fetchHolderAddresses(
-  client: PublicClient,
-  fromBlock: bigint,
-): Promise<Address[]> {
+async function fetchHolderAddresses(client: PublicClient, fromBlock: bigint) {
   const latest = await client.getBlockNumber()
   const logs = await getTransferLogs(client, fromBlock, latest)
   const holders = new Set<Address>()
@@ -109,11 +128,26 @@ export async function fetchHolderAddresses(
   return [...holders]
 }
 
-export async function buildHolderCells(
-  client: PublicClient,
-  addresses: Address[],
-  page: number,
-): Promise<{ cells: ReactorCell[]; totalHolders: number }> {
+export async function scanHoldersPage(client: PublicClient, page: number) {
+  const latest = await client.getBlockNumber()
+  const recentFrom = latest > RECENT_LOG_WINDOW ? latest - RECENT_LOG_WINDOW : 0n
+
+  let fromBlock = recentFrom
+  if (process.env.RPC_URL || process.env.VITE_RPC_URL) {
+    try {
+      fromBlock = await estimateLaunchBlock(client)
+    } catch {
+      fromBlock = recentFrom
+    }
+  }
+
+  let addresses: Address[]
+  try {
+    addresses = await fetchHolderAddresses(client, fromBlock)
+  } catch {
+    addresses = await fetchHolderAddresses(client, recentFrom)
+  }
+
   if (addresses.length === 0) return { cells: [], totalHolders: 0 }
 
   const currentRound = (await client.readContract({
@@ -135,9 +169,7 @@ export async function buildHolderCells(
   const active: Address[] = []
   for (let i = 0; i < addresses.length; i++) {
     const row = balanceResults[i]
-    if (row.status === 'success' && (row.result as bigint) > 0n) {
-      active.push(addresses[i])
-    }
+    if (row.status === 'success' && (row.result as bigint) > 0n) active.push(addresses[i])
   }
 
   if (active.length === 0) return { cells: [], totalHolders: 0 }
@@ -189,13 +221,7 @@ export async function buildHolderCells(
         eligibleResults[i].status === 'success' ? (eligibleResults[i].result as boolean) : false
       const cellData =
         cellResults[i].status === 'success'
-          ? (cellResults[i].result as readonly [
-              bigint,
-              bigint,
-              number,
-              number,
-              boolean,
-            ])
+          ? (cellResults[i].result as readonly [bigint, bigint, number, number, boolean])
           : null
       const balance =
         balanceActive[i].status === 'success' ? (balanceActive[i].result as bigint) : 0n
@@ -204,14 +230,12 @@ export async function buildHolderCells(
       const energyNum = Number(formatUnits(energy, TOKEN_DECIMALS))
       const roundOf = cellData ? Number(cellData[2]) : 0
       const countedEligible = cellData ? cellData[4] : false
-      const maturity =
-        balanceNum > 0 ? Math.min(1, energyNum / (balanceNum * 4 + 1)) : 0
+      const maturity = balanceNum > 0 ? Math.min(1, energyNum / (balanceNum * 4 + 1)) : 0
       const roundsHeld = Math.max(0, Number(currentRound) - roundOf)
 
       return {
         address,
         energy,
-        balance,
         balanceNum,
         energyNum,
         eligible,
@@ -222,45 +246,21 @@ export async function buildHolderCells(
     })
     .sort((a, b) => (a.energy > b.energy ? -1 : a.energy < b.energy ? 1 : 0))
 
-  const pageStart = page * HOLDERS_PAGE_SIZE
-  const slice = ranked.slice(pageStart, pageStart + HOLDERS_PAGE_SIZE)
+  const pageStart = page * PAGE_SIZE
+  const slice = ranked.slice(pageStart, pageStart + PAGE_SIZE)
 
-  const cells = slice.map((row, index) => {
-    const col = index % COLS
-    const gridRow = Math.floor(index / COLS)
-    return {
-      id: `live-${row.address}`,
-      address: shortenAddress(row.address, 4),
-      balance: row.balanceNum,
-      chargeScore: row.energyNum,
-      maturity: row.maturity,
-      heldMs: row.heldMs,
-      weight: row.countedEligible ? 1.0 : row.eligible ? 1.0 : 0.1,
-      ejected: !row.eligible,
-      row: gridRow,
-      col,
-    }
-  })
+  const cells = slice.map((row, index) => ({
+    id: `live-${row.address}`,
+    address: shortenAddress(row.address, 4),
+    balance: row.balanceNum,
+    chargeScore: row.energyNum,
+    maturity: row.maturity,
+    heldMs: row.heldMs,
+    weight: row.countedEligible ? 1.0 : row.eligible ? 1.0 : 0.1,
+    ejected: !row.eligible,
+    row: Math.floor(index / COLS),
+    col: index % COLS,
+  }))
 
   return { cells, totalHolders: ranked.length }
-}
-
-export async function scanHoldersPage(
-  client: PublicClient,
-  page: number,
-  options: { allowArchive?: boolean } = {},
-): Promise<{ cells: ReactorCell[]; totalHolders: number }> {
-  const allowArchive = options.allowArchive ?? Boolean(ENV.rpcUrl)
-
-  const fromBlock = await resolveScanFromBlock(client, allowArchive)
-  try {
-    const addresses = await fetchHolderAddresses(client, fromBlock)
-    return buildHolderCells(client, addresses, page)
-  } catch (error) {
-    const latest = await client.getBlockNumber()
-    const recentFrom = latest > RECENT_LOG_WINDOW ? latest - RECENT_LOG_WINDOW : 0n
-    if (fromBlock === recentFrom) throw error
-    const addresses = await fetchHolderAddresses(client, recentFrom)
-    return buildHolderCells(client, addresses, page)
-  }
 }

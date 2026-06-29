@@ -34,7 +34,7 @@ export async function estimateLaunchBlock(client: PublicClient): Promise<bigint>
 
   const now = BigInt(Math.floor(Date.now() / 1000))
   const elapsed = now > lastTs ? now - lastTs : 0n
-  const blocksAgo = elapsed / 12n + 2_000n
+  const blocksAgo = elapsed / 12n + 50n
   cachedLaunchBlock = latest > blocksAgo ? latest - blocksAgo : 0n
   return cachedLaunchBlock
 }

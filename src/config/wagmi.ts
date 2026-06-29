@@ -9,11 +9,11 @@ export const appChain = ENV.chainId === sepolia.id ? sepolia : mainnet
 
 const chains = [appChain] as const
 
-/** eth.merkle.io (viem default) often stalls in the browser — use reliable public fallbacks */
+/** Public mainnet RPCs — free tiers limit eth_getLogs to ~100 recent blocks */
 const PUBLIC_MAINNET_RPCS = [
-  'https://ethereum.publicnode.com',
-  'https://1rpc.io/eth',
+  'https://eth.llamarpc.com',
   'https://cloudflare-eth.com',
+  'https://ethereum.publicnode.com',
 ] as const
 
 const RPC_TIMEOUT_MS = 12_000
