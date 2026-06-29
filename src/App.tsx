@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { CommandPanel } from './components/CommandPanel'
+import { FixedCaDock } from './components/FixedCaDock'
 import { Header } from './components/Header'
 import { PageScan } from './components/PageScan'
 import { ScrollReactorOrb } from './components/ScrollReactorOrb'
@@ -20,6 +21,7 @@ export default function App() {
             <ReactorProvider>
             <VantaNetBackground />
             <ScrollReactorOrb />
+            <FixedCaDock />
             <PageScan />
             <div className="relative z-10 min-h-screen">
               <Header />

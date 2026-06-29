@@ -973,6 +973,222 @@ body {
   color: var(--color-charge-400);
 }
 
+/* ── Fixed CA dock (bottom-left) ── */
+.ca-dock {
+  left: max(0.75rem, env(safe-area-inset-left));
+  bottom: max(5.75rem, calc(env(safe-area-inset-bottom) + 4.75rem));
+  max-width: min(22rem, calc(100vw - 1.5rem));
+  pointer-events: auto;
+  animation: ca-dock-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (min-width: 640px) {
+  .ca-dock {
+    left: max(1.25rem, env(safe-area-inset-left));
+    bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+}
+
+.ca-dock-beam {
+  position: absolute;
+  inset: -1px;
+  border-radius: 14px;
+  background: linear-gradient(120deg, rgba(74, 222, 128, 0.55), rgba(34, 211, 238, 0.35), rgba(74, 222, 128, 0.2));
+  opacity: 0.85;
+  filter: blur(10px);
+  animation: ca-dock-glow 2.8s ease-in-out infinite;
+}
+
+.ca-dock--tba .ca-dock-beam {
+  background: linear-gradient(120deg, rgba(251, 191, 36, 0.45), rgba(34, 211, 238, 0.2));
+}
+
+.ca-dock-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  background:
+    linear-gradient(135deg, rgba(74, 222, 128, 0.14) 0%, transparent 55%),
+    rgba(6, 8, 12, 0.92);
+  box-shadow:
+    0 0 0 1px rgba(74, 222, 128, 0.12),
+    0 10px 36px rgba(0, 0, 0, 0.55),
+    0 0 32px rgba(74, 222, 128, 0.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.ca-dock--tba .ca-dock-panel {
+  border-color: rgba(251, 191, 36, 0.4);
+  background:
+    linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, transparent 55%),
+    rgba(6, 8, 12, 0.92);
+  box-shadow:
+    0 0 0 1px rgba(251, 191, 36, 0.1),
+    0 10px 36px rgba(0, 0, 0, 0.55),
+    0 0 28px rgba(251, 191, 36, 0.12);
+}
+
+.ca-dock-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(74, 222, 128, 0.03) 2px,
+    rgba(74, 222, 128, 0.03) 4px
+  );
+  pointer-events: none;
+}
+
+.ca-dock-pulse {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+}
+
+.ca-dock-body {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.ca-dock-meta {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ca-dock-tag {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-cyan-400);
+}
+
+.ca-dock-symbol {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-charge-400);
+}
+
+.ca-dock-address {
+  display: inline-flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.4rem;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.ca-dock-address:hover {
+  color: #fff;
+}
+
+.ca-dock-address--static {
+  cursor: default;
+}
+
+.ca-dock-prefix {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.ca-dock-address code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-charge-400);
+}
+
+.ca-dock--tba .ca-dock-address code {
+  color: var(--color-amber-400);
+}
+
+.ca-dock-copy {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.35rem;
+  height: 2rem;
+  padding: 0 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.22), rgba(34, 211, 238, 0.12));
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.ca-dock-copy:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(74, 222, 128, 0.75);
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.28);
+}
+
+.ca-dock-copy--done {
+  border-color: rgba(34, 211, 238, 0.65);
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.25), rgba(74, 222, 128, 0.15));
+  color: var(--color-cyan-400);
+}
+
+.ca-dock-copy:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@keyframes ca-dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ca-dock-glow {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .header-ca-pill {
   display: inline-flex;
   align-items: center;
