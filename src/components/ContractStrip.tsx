@@ -1,9 +1,9 @@
 import { useState } from 'react'
+import { getDataModeLabel, useDataMode } from '../context/DataModeContext'
 import {
   CORE_CA,
   getCaDisplayLabel,
   isCaDeployed,
-  LAUNCH_MESSAGE,
   TOKEN_SYMBOL,
   TWITTER_URL,
 } from '../config/contract'
@@ -13,6 +13,8 @@ export function ContractStrip() {
   const [copied, setCopied] = useState(false)
   const deployed = isCaDeployed()
   const caLabel = getCaDisplayLabel()
+  const { dataMode, contractAvailable } = useDataMode()
+  const modeLabel = getDataModeLabel(dataMode, contractAvailable)
 
   async function handleCopy() {
     if (!deployed) return
@@ -41,7 +43,7 @@ export function ContractStrip() {
           <span className="text-[10px]">X</span>
         </a>
         <span className="shrink-0 rounded-full border border-[var(--border-subtle)] bg-steel-800/60 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
-          {LAUNCH_MESSAGE}
+          {modeLabel}
         </span>
       </div>
 

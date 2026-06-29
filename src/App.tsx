@@ -4,6 +4,7 @@ import { Header } from './components/Header'
 import { PageScan } from './components/PageScan'
 import { ScrollReactorOrb } from './components/ScrollReactorOrb'
 import { VantaNetBackground } from './components/VantaNetBackground'
+import { DataModeProvider } from './context/DataModeContext'
 import { ReactorProvider } from './context/ReactorContext'
 import { RouteTransitionProvider } from './context/RouteTransitionContext'
 import { WalletProvider } from './context/WalletProvider'
@@ -15,7 +16,8 @@ export default function App() {
     <WalletProvider>
       <BrowserRouter>
         <RouteTransitionProvider>
-          <ReactorProvider>
+          <DataModeProvider>
+            <ReactorProvider>
             <VantaNetBackground />
             <ScrollReactorOrb />
             <PageScan />
@@ -35,7 +37,8 @@ export default function App() {
                 </CommandPanel>
               </footer>
             </div>
-          </ReactorProvider>
+            </ReactorProvider>
+          </DataModeProvider>
         </RouteTransitionProvider>
       </BrowserRouter>
     </WalletProvider>

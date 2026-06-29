@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useReactorOptional } from '../context/ReactorContext'
+import { useDataModeOptional } from '../context/DataModeContext'
 import { getLiveTelemetryLines } from '../engine/telemetry'
 import { TOKEN_SYMBOL } from '../config/contract'
+import { DataModeSwitch } from './DataModeSwitch'
 import { BuyCoreButton } from './BuyCoreButton'
 import { CommandPanel } from './CommandPanel'
 import { ConnectWalletButton } from './ConnectWalletButton'
@@ -30,7 +32,9 @@ export function Header() {
   const [telemetryIdx, setTelemetryIdx] = useState(0)
   const [clock, setClock] = useState('00:00:00')
 
+  const dataMode = useDataModeOptional()
   const telemetry = snapshot ? getLiveTelemetryLines(snapshot) : FALLBACK_TELEMETRY
+  const feedLabel = dataMode?.isLiveDataMode ? 'Live' : 'Demo'
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 56)
@@ -120,6 +124,7 @@ export function Header() {
           </nav>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <DataModeSwitch compact />
             <VisitorCounter compact />
             <ConnectWalletButton />
             <HeaderSocialBar />
@@ -143,7 +148,7 @@ export function Header() {
                   snapshot?.meltdownActive ? 'text-meltdown-400' : 'text-charge-400'
                 }`}
               >
-                {snapshot?.meltdownActive ? 'Alert' : 'Live'}
+                {snapshot?.meltdownActive ? 'Alert' : feedLabel}
               </span>
               <p
                 key={`${telemetryIdx}-${telemetry[telemetryIdx]}`}

@@ -8,11 +8,10 @@ import {
 import { reactorAbi } from '../abis/reactor'
 import {
   CORE_CA,
-  isCaDeployed,
-  LAUNCH_MESSAGE,
   REACTOR_HOOK_CA,
   TOKEN_DECIMALS,
 } from '../config/contract'
+import { getDataModeLabel, useDataMode } from '../context/DataModeContext'
 import { TARGET_CHAIN_ID } from '../config/wagmi'
 import { formatEthFromWei, formatTokenAmount } from '../lib/formatOnChain'
 
@@ -20,8 +19,8 @@ export function useReactorWallet() {
   const { address, status } = useConnection()
   const isConnected = status === 'connected'
   const chainId = useChainId()
-  const live = isCaDeployed()
-  const hookLive = live
+  const { isLiveDataMode, dataMode, contractAvailable } = useDataMode()
+  const hookLive = isLiveDataMode
   const wrongChain = isConnected && chainId !== TARGET_CHAIN_ID
 
   const balanceQuery = useReadContract({
@@ -30,7 +29,7 @@ export function useReactorWallet() {
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
     query: {
-      enabled: live && isConnected && !!address && !wrongChain,
+      enabled: isLiveDataMode && isConnected && !!address && !wrongChain,
       refetchInterval: 12_000,
     },
   })
@@ -66,12 +65,12 @@ export function useReactorWallet() {
 
   const formatted = useMemo(
     () => ({
-      balance: live && isConnected ? formatTokenAmount(coreBalance, TOKEN_DECIMALS) : null,
+      balance: isLiveDataMode && isConnected ? formatTokenAmount(coreBalance, TOKEN_DECIMALS) : null,
       claimableEth: hookLive && isConnected ? formatEthFromWei(claimableWei) : null,
       chargeScore:
         hookLive && isConnected ? formatTokenAmount(chargeScoreRaw, TOKEN_DECIMALS, 0) : null,
     }),
-    [live, hookLive, isConnected, coreBalance, claimableWei, chargeScoreRaw],
+    [isLiveDataMode, hookLive, isConnected, coreBalance, claimableWei, chargeScoreRaw],
   )
 
   return {
@@ -79,9 +78,9 @@ export function useReactorWallet() {
     isConnected,
     status,
     wrongChain,
-    live,
+    live: isLiveDataMode,
     hookLive,
-    launchMessage: LAUNCH_MESSAGE,
+    launchMessage: getDataModeLabel(dataMode, contractAvailable),
     formatted,
     isLoading: balanceQuery.isLoading || hookReads.isLoading,
     refetch: () => {

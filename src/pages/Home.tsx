@@ -7,18 +7,20 @@ import { Mechanics } from '../components/Mechanics'
 import { RewardPanel } from '../components/RewardPanel'
 import { ReactorGrid } from '../components/ReactorGrid'
 import { StatusRail } from '../components/StatusRail'
-import { LIVE_DATA_ENABLED } from '../config/contract'
+import { dataModeBootMessage } from '../components/DataModeSwitch'
+import { useDataMode } from '../context/DataModeContext'
 import { useReactor } from '../context/ReactorContext'
 
 export function HomePage() {
   const { snapshot, engineRef } = useReactor()
+  const { dataMode, isLiveDataMode } = useDataMode()
 
   if (!snapshot) {
     return (
       <div className="page-shell flex min-h-[50vh] items-center justify-center py-12">
         <CommandPanel tag="Boot sequence" className="px-8 py-6">
           <p className="font-mono text-sm text-cyan-400">
-            {LIVE_DATA_ENABLED ? 'Connecting to mainnet…' : 'Initializing reactor…'}
+            {dataModeBootMessage(dataMode, isLiveDataMode)}
           </p>
         </CommandPanel>
       </div>
@@ -42,7 +44,11 @@ export function HomePage() {
             exposed
             eyebrow="Live map"
             title="Reactor grid"
-            description="Every rod is one holder. Hover to inspect, tap to select. Pages slice on-chain holders by charge-score."
+            description={
+              isLiveDataMode
+                ? 'Every rod is one holder. Hover to inspect, tap to select. Pages slice on-chain holders by charge-score.'
+                : 'Every rod is one simulated holder. Hover to inspect, tap to select. Demo metrics mirror the on-chain reactor.'
+            }
           />
           <div className="w-full max-w-sm shrink-0 lg:max-w-xs">
             <ContractStrip />

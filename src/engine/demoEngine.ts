@@ -11,12 +11,23 @@ import type {
   ReactorSnapshot,
 } from './types'
 
+/** Seed aligned with on-chain fields: jarEth, strengthNow (S/Smax), round, trade volume */
+export const DEMO_CONTRACT_BASELINE = {
+  reserveEth: 0.36,
+  bufferFill: 0.76,
+  coreEth: 0.031,
+  cycle: 3,
+  cellCount: 20,
+  totalBuysEth: 0.287,
+  totalSellsEth: 0.198,
+} as const
+
 const DEFAULT_CONFIG: DemoEngineConfig = {
-  cellCount: 24,
+  cellCount: DEMO_CONTRACT_BASELINE.cellCount,
   cols: 6,
   alpha: 0.18,
   gamma: 0.0008,
-  reserveEth: 0.42,
+  reserveEth: DEMO_CONTRACT_BASELINE.reserveEth,
 }
 
 /** Simulated cycle buy/sell volume band shown in live telemetry */
@@ -81,11 +92,11 @@ export function createDemoEngine(
   const config = { ...DEFAULT_CONFIG, ...partialConfig }
   const beta = config.alpha * BETA_MULTIPLIER
   let bufferSmax = THETA_SMAX * config.reserveEth
-  let bufferS = bufferSmax * 0.82
-  let coreEth = 0.038 + Math.random() * 0.022
-  let cycle = 1
-  let totalBuysEth = randomVolume()
-  let totalSellsEth = randomVolume()
+  let bufferS = bufferSmax * DEMO_CONTRACT_BASELINE.bufferFill
+  let coreEth = DEMO_CONTRACT_BASELINE.coreEth
+  let cycle = DEMO_CONTRACT_BASELINE.cycle
+  let totalBuysEth: number = DEMO_CONTRACT_BASELINE.totalBuysEth
+  let totalSellsEth: number = DEMO_CONTRACT_BASELINE.totalSellsEth
   let meltdownActive = false
   let meltdownFlash = false
   let meltdownTimer = 0
@@ -120,7 +131,7 @@ export function createDemoEngine(
       selectedCellId,
       hoveredCellId,
       gridPage,
-      demoLabel: `demo · preview · ${config.cellCount} rods · page ${gridPage + 1} · cycle ${cycle}`,
+      demoLabel: `demo · simulated · ${config.cellCount} rods · page ${gridPage + 1} · cycle ${cycle}`,
     }
   }
 

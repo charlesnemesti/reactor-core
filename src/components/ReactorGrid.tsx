@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useDataModeOptional } from '../context/DataModeContext'
 import type { ReactorSnapshot } from '../engine/types'
 import { CommandPanel } from './CommandPanel'
 import { FuelRodCell } from './FuelRodCell'
@@ -28,6 +29,8 @@ export function ReactorGrid({
   onHoverCell,
   onNextPage,
 }: ReactorGridProps) {
+  const dataMode = useDataModeOptional()
+  const isLive = dataMode?.isLiveDataMode ?? false
   const containerRef = useRef<HTMLDivElement>(null)
   const [dims, setDims] = useState<GridDims>({ cellW: 56, cellH: 81 })
 
@@ -79,8 +82,9 @@ export function ReactorGrid({
                 Grid empty
               </p>
               <p className="max-w-sm text-sm leading-relaxed text-[var(--text-muted)]">
-                No holders on-chain yet. The first buy mints a fuel cell here — connect wallet and
-                buy $REACTOR to appear in the live map.
+                {isLive
+                  ? 'No holders on-chain yet. The first buy mints a fuel cell here — connect wallet and buy $REACTOR to appear in the live map.'
+                  : 'Demo grid is empty on this page. Switch to live mode to scan mainnet holders, or advance pages in demo.'}
               </p>
             </div>
           ) : (

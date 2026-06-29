@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { usePublicClient } from 'wagmi'
-import { CORE_CA, isCaDeployed, LIVE_DATA_ENABLED } from '../config/contract'
+import { CORE_CA, isCaDeployed } from '../config/contract'
+import { useDataMode } from '../context/DataModeContext'
 import type { ReactorCell } from '../engine/types'
 import {
   HOLDERS_PAGE_SIZE,
@@ -11,7 +12,8 @@ import {
 
 export function useHolderCells(page: number) {
   const client = usePublicClient()
-  const enabled = LIVE_DATA_ENABLED && isCaDeployed() && !!client
+  const { isLiveDataMode } = useDataMode()
+  const enabled = isLiveDataMode && isCaDeployed() && !!client
 
   return useQuery({
     queryKey: ['holder-cells', CORE_CA, page],

@@ -9,7 +9,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
-import { LIVE_DATA_ENABLED } from '../config/contract'
+import { useDataMode } from '../context/DataModeContext'
 import type { ProtocolStats } from '../hooks/useProtocolStats'
 import { createDemoEngine } from '../engine/demoEngine'
 import type { DemoEngine, ReactorSnapshot } from '../engine/types'
@@ -48,7 +48,7 @@ export function ReactorProvider({ children }: { children: ReactNode }) {
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null)
   const [hoveredCellId, setHoveredCellId] = useState<string | null>(null)
 
-  const live = LIVE_DATA_ENABLED
+  const { isLiveDataMode: live } = useDataMode()
   const {
     data: protocol = LIVE_PROTOCOL_FALLBACK,
     isLoading: protocolLoading,

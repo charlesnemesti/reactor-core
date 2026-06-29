@@ -1,6 +1,7 @@
 import { formatEth, formatNumber, getDemoWalletStats } from '../engine/demoEngine'
 import type { ReactorSnapshot } from '../engine/types'
-import { isCaDeployed, LAUNCH_MESSAGE, shortenAddress, TOKEN_SYMBOL } from '../config/contract'
+import { getDataModeLabel, useDataMode } from '../context/DataModeContext'
+import { shortenAddress, TOKEN_SYMBOL } from '../config/contract'
 import { useReactorWallet } from '../hooks/useReactorWallet'
 import { ClaimButton } from './ClaimButton'
 import { CommandPanel } from './CommandPanel'
@@ -13,9 +14,9 @@ interface RewardPanelProps {
 export function RewardPanel({ snapshot, className = '' }: RewardPanelProps) {
   const demo = getDemoWalletStats(snapshot)
   const wallet = useReactorWallet()
-  const live = isCaDeployed()
+  const { isLiveDataMode, dataMode, contractAvailable } = useDataMode()
 
-  const useOnChain = live && wallet.isConnected && !wallet.wrongChain
+  const useOnChain = isLiveDataMode && wallet.isConnected && !wallet.wrongChain
   const tag = useOnChain && wallet.address
     ? `Your cell · ${shortenAddress(wallet.address, 3)}`
     : 'Your reward · Claimable'
@@ -23,28 +24,28 @@ export function RewardPanel({ snapshot, className = '' }: RewardPanelProps) {
   const balance =
     useOnChain && wallet.formatted.balance
       ? `${wallet.formatted.balance} ${TOKEN_SYMBOL}`
-      : live
+      : isLiveDataMode
         ? '—'
         : `${formatNumber(demo.balance)} ${TOKEN_SYMBOL}`
 
   const chargeScore =
     useOnChain && wallet.formatted.chargeScore
       ? wallet.formatted.chargeScore
-      : live
+      : isLiveDataMode
         ? '—'
         : formatNumber(demo.chargeScore)
 
   const claimableEth =
     useOnChain && wallet.formatted.claimableEth
       ? wallet.formatted.claimableEth
-      : live
+      : isLiveDataMode
         ? '0.000'
         : formatEth(demo.claimableEth)
 
   const estShare =
     snapshot.meltdownActive || (useOnChain && Number(claimableEth) > 0)
       ? `${claimableEth} ETH`
-      : LAUNCH_MESSAGE
+      : getDataModeLabel(dataMode, contractAvailable)
 
   return (
     <CommandPanel as="section" tag={tag} glow className={`p-5 sm:p-6 ${className}`}>
@@ -55,7 +56,7 @@ export function RewardPanel({ snapshot, className = '' }: RewardPanelProps) {
       <p className="mb-6 text-sm text-[var(--text-muted)]">
         {useOnChain
           ? 'On-chain claimable from the reactor'
-          : live
+          : isLiveDataMode
             ? 'Connect wallet to load your cell'
             : 'ready to claim from the last meltdown (demo)'}
       </p>
@@ -73,7 +74,7 @@ export function RewardPanel({ snapshot, className = '' }: RewardPanelProps) {
       )}
 
       <p className="mt-5 border-t border-[var(--border-subtle)] pt-4 text-sm leading-relaxed text-[var(--text-muted)]">
-        {live ? (
+        {isLiveDataMode ? (
           <>
             Connect your wallet to sync balance and claim when the hook reports rewards.{' '}
             <span className="text-meltdown-400">Eject before meltdown and you forfeit charge.</span>

@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { formatUnits } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { reactorAbi } from '../abis/reactor'
-import { CORE_CA, CORE_OVERHEAT_ETH, isCaDeployed, LIVE_DATA_ENABLED } from '../config/contract'
+import { CORE_CA, CORE_OVERHEAT_ETH, isCaDeployed } from '../config/contract'
+import { useDataMode } from '../context/DataModeContext'
 
 export interface ProtocolStats {
   coreEth: number
@@ -30,7 +31,8 @@ const EMPTY: ProtocolStats = {
 
 export function useProtocolStats() {
   const client = usePublicClient()
-  const enabled = LIVE_DATA_ENABLED && isCaDeployed() && !!client
+  const { isLiveDataMode } = useDataMode()
+  const enabled = isLiveDataMode && isCaDeployed() && !!client
 
   return useQuery({
     queryKey: ['protocol-stats', CORE_CA],

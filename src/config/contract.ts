@@ -57,7 +57,7 @@ export function getUniswapBuyUrl(): string {
 
 export const UNISWAP_BUY_URL = getUniswapBuyUrl()
 
-/** Auto-switch demo → live reads when token address is configured */
+/** Contract address is configured — live reads are available when user selects live mode */
 export const LIVE_DATA_ENABLED = isCaDeployed()
 
 export const LAUNCH_MESSAGE = LIVE_DATA_ENABLED ? 'Live on-chain' : 'Live at launch'
